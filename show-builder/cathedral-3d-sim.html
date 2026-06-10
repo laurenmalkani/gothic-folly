@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gothic Folly — 3D Layout</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #07070f; font-family: monospace;
+         display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+  #toolbar {
+    display: none; gap: 10px; align-items: center; padding: 8px 14px;
+    background: #111; border-bottom: 1px solid #333; flex-shrink: 0; flex-wrap: wrap;
+  }
+  select { font-family: monospace; font-size: 12px; padding: 4px 8px;
+           background: #222; color: #aaa; border: 1px solid #444; border-radius: 3px; }
+  .sep { width: 1px; height: 18px; background: #333; flex-shrink: 0; }
+  .zrow { display: flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; }
+  .zrow:hover .zlabel { color: #fff; }
+  .zdot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .zlabel { font-size: 12px; color: #aaa; }
+  #live-badge {
+    font-size: 12px; font-weight: bold; padding: 3px 8px;
+    border-radius: 3px; display: none;
+    background: #0a2a0a; color: #4f4; border: 1px solid #4f4;
+  }
+  #live-badge.active { display: inline; }
+  #info { margin-left: auto; font-size: 11px; color: #666; }
+  #canvas-wrap { flex: 1; overflow: hidden; }
+  #canvas-wrap canvas { display: block; width: 100% !important; height: 100% !important; }
+  #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+             font-size: 13px; letter-spacing: 0.08em; color: #555; text-transform: uppercase; }
+</style>
+</head>
+<body>
+<div id="loading">Loading…</div>
+<div id="toolbar">
+  <select onchange="location.href=this.value" style="font-family:monospace;font-size:13px;font-weight:bold;padding:4px 8px;background:#1a1a1a;color:#aaa;border:1px solid #444;border-radius:3px;">
+    <option value="rose-window-sim.html">🕸 ROSE WINDOW</option>
+    <option value="cathedral-3d-sim.html" selected>🏰 3D LAYOUT</option>
+  </select>
+  <div class="sep"></div>
+  <div id="toggles" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;"></div>
+  <span id="live-badge" title="Receiving live data from relay">● LIVE</span>
+  <span id="info">Drag to orbit · Scroll to zoom · Right-drag to pan · Double-click to reset view</span>
+</div>
+<div id="canvas-wrap"></div>
+
+<script type="importmap">
+{ "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ── Renderer ──────────────────────────────────────────────────────────────────
+const wrap = document.getElementById('canvas-wrap');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+function resize() {
+  const w = wrap.clientWidth, h = wrap.clientHeight;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+}
+wrap.appendChild(renderer.domElement);
+window.addEventListener('resize', resize);
+
+// ── Scene ─────────────────────────────────────────────────────────────────────
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x07070f);
+
+const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 500);
+camera.position.set(-20, 18, -35);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 8, 2);
+controls.enableDamping = true; controls.dampingFactor = 0.07;
+controls.minDistance = 5; controls.maxDistance = 200;
+controls.update();
+
+renderer.domElement.addEventListener('dblclick', () => {
+  camera.position.set(0, 18, -35);
+  controls.target.set(0, 8, 0);
+  controls.update();
+});
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+sun.position.set(-15, 30, -20); scene.add(sun);
+
+scene.add(new THREE.GridHelper(100, 50, 0x181828, 0x0d0d1a));
+
+// ── Coordinate mapping ────────────────────────────────────────────────────────
+// Cathedral: X=front-back (neg=front entrance), Y=height, Z=left-right
+// Three.js:  X=catZ,  Y=catY,  Z=catX
+const c3 = (catX, catY, catZ) => new THREE.Vector3(-catZ, catY, catX);
+
+// ── Zone definitions ──────────────────────────────────────────────────────────
+const ZONES = {
+  roseWindow: { label: 'Rose Window', hex: '#ff8855', color: 0xff8855 },
+  mainArches: { label: 'Main Arches', hex: '#4488ff', color: 0x4488ff },
+  miniArches: { label: 'Mini Arches', hex: '#66aaff', color: 0x66aaff },
+  quadArches: { label: 'Quad Arches', hex: '#33ddff', color: 0x33ddff },
+  spires:     { label: 'Spires',      hex: '#ffee44', color: 0xffee44 },
+  spirelets:  { label: 'Spirelets',   hex: '#ffbb22', color: 0xffbb22 },
+  canopy:     { label: 'Canopy',      hex: '#77ff99', color: 0x77ff99 },
+  orbs:       { label: 'Orbs',        hex: '#ff66cc', color: 0xff66cc },
+};
+for (const z of Object.values(ZONES)) {
+  z.group = new THREE.Group();
+  scene.add(z.group);
+}
+
+// ── Demo animation state ───────────────────────────────────────────────────────
+let demoEffect  = 'zone';
+let demoSpeed   = 1.0;
+let animPhase   = 0;
+let lastDemoTs  = null;
+
+// ── Live relay state ──────────────────────────────────────────────────────────
+const RELAY_URL       = 'ws://localhost:3001';
+const LIVE_TIMEOUT_MS = 3000;
+const liveChannels    = new Map();  // universe → Uint8Array
+let isLive            = false;
+let liveTimer         = null;
+const pixelRefs       = [];  // { colBuf, bufIdx, universe, ch0, zR, zG, zB }
+const meshRefs        = [];  // { mat, universe, ch0, zR, zG, zB }
+
+// Rose window: universe = petal+1 (1–16), per-cell 0-based channel offsets
+const ROSE_CELL_CH = {
+  '1b': 0, '2a': 3, '2c': 6,  '3b': 9,
+  '4a':12, '4c':15, '5a':18, '5b':21, '5c':24,
+  '6a':27, '6c':30, '7a':33, '7b':36, '7c':39
+};
+
+function setLive(active) {
+  isLive = active;
+  document.getElementById('live-badge').classList.toggle('active', active);
+}
+
+function updateLiveColors() {
+  if (!isLive) return;
+  const dirty = new Set();
+  for (const ref of pixelRefs) {
+    const chs = liveChannels.get(ref.universe);
+    if (!chs || ref.ch0 + 2 >= chs.length) continue;
+    ref.colBuf.array[ref.bufIdx*3]   = chs[ref.ch0]   / 255;
+    ref.colBuf.array[ref.bufIdx*3+1] = chs[ref.ch0+1] / 255;
+    ref.colBuf.array[ref.bufIdx*3+2] = chs[ref.ch0+2] / 255;
+    dirty.add(ref.colBuf);
+  }
+  for (const buf of dirty) buf.needsUpdate = true;
+  for (const ref of meshRefs) {
+    const chs = liveChannels.get(ref.universe);
+    if (!chs || ref.ch0 + 2 >= chs.length) continue;
+    ref.mat.color.setRGB(chs[ref.ch0]/255, chs[ref.ch0+1]/255, chs[ref.ch0+2]/255);
+  }
+}
+
+function resetToZoneColors() {
+  const dirty = new Set();
+  for (const ref of pixelRefs) {
+    ref.colBuf.array[ref.bufIdx*3]   = ref.zR;
+    ref.colBuf.array[ref.bufIdx*3+1] = ref.zG;
+    ref.colBuf.array[ref.bufIdx*3+2] = ref.zB;
+    dirty.add(ref.colBuf);
+  }
+  for (const buf of dirty) buf.needsUpdate = true;
+  for (const ref of meshRefs) ref.mat.color.setRGB(ref.zR, ref.zG, ref.zB);
+}
+
+function startRelay() {
+  let ws;
+  function connect() {
+    ws = new WebSocket(RELAY_URL);
+    ws.onopen  = () => {};
+    ws.onclose = () => { setLive(false); setTimeout(connect, 3000); };
+    ws.onerror = () => {};
+    ws.onmessage = (evt) => {
+      const msg = JSON.parse(evt.data);
+      if (msg.type === 'universe') {
+        liveChannels.set(msg.universe, new Uint8Array(msg.channels));
+      } else if (msg.type === 'cells') {
+        // rose window WLED format: [{petal, cell, r, g, b}]
+        for (const { petal, cell, r, g, b } of msg.data) {
+          const u = petal + 1;
+          if (!liveChannels.has(u)) liveChannels.set(u, new Uint8Array(42));
+          const ch0 = ROSE_CELL_CH[cell];
+          if (ch0 !== undefined) {
+            const chs = liveChannels.get(u);
+            chs[ch0] = r; chs[ch0+1] = g; chs[ch0+2] = b;
+          }
+        }
+      } else return;
+      if (!isLive) setLive(true);
+      clearTimeout(liveTimer);
+      liveTimer = setTimeout(() => {
+        liveChannels.clear(); setLive(false); resetToZoneColors();
+      }, LIVE_TIMEOUT_MS);
+    };
+  }
+  connect();
+}
+
+// ── Demo color engine ─────────────────────────────────────────────────────────
+function normalizePosRefs() {
+  const all = [...pixelRefs, ...meshRefs];
+  let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity,z0=Infinity,z1=-Infinity;
+  for (const r of all) {
+    if (r.wx===undefined) continue;
+    if (r.wx<x0) x0=r.wx; if (r.wx>x1) x1=r.wx;
+    if (r.wy<y0) y0=r.wy; if (r.wy>y1) y1=r.wy;
+    if (r.wz<z0) z0=r.wz; if (r.wz>z1) z1=r.wz;
+  }
+  const xR=x1-x0||1, yR=y1-y0||1, zR=z1-z0||1;
+  for (const r of all) {
+    if (r.wx===undefined) continue;
+    r.xn = (r.wx-x0)/xR;
+    r.yn = (r.wy-y0)/yR;
+    r.zn = (r.wz-z0)/zR;
+    r.twinkleOff = Math.random()*Math.PI*2;
+  }
+}
+
+const _dc = new THREE.Color();
+function updateDemoColors(phase) {
+  const dirty = new Set();
+  for (const ref of [...pixelRefs, ...meshRefs]) {
+    if (ref.xn === undefined) continue;
+    let h=0.6, s=1, l=0.3;
+
+    if (demoEffect === 'zone') {
+      if (ref.colBuf) {
+        ref.colBuf.array[ref.bufIdx*3]   = ref.zR;
+        ref.colBuf.array[ref.bufIdx*3+1] = ref.zG;
+        ref.colBuf.array[ref.bufIdx*3+2] = ref.zB;
+        dirty.add(ref.colBuf);
+      } else ref.mat.color.setRGB(ref.zR, ref.zG, ref.zB);
+      continue;
+    }
+
+    const bell = p => Math.pow(Math.max(0, Math.cos(p * Math.PI)), 2);
+    if (demoEffect === 'lr-sweep') {
+      // Warm amber/gold band sweeping left → right
+      const p = ((ref.xn + phase*0.25) % 1 + 1) % 1;
+      h = 0.08; s = 0.95; l = 0.03 + 0.52 * bell(p);
+    } else if (demoEffect === 'rise') {
+      // Deep violet tide rising from ground to spire tips
+      const p = ((ref.yn - phase*0.25) % 1 + 1) % 1;
+      h = 0.70; s = 0.9; l = 0.03 + 0.52 * bell(p);
+    } else if (demoEffect === 'fb-sweep') {
+      // Teal/cyan band moving front → back through the cathedral
+      const p = ((ref.zn - phase*0.25) % 1 + 1) % 1;
+      h = 0.50; s = 0.9; l = 0.03 + 0.52 * bell(p);
+    } else if (demoEffect === 'radial') {
+      // Rose/magenta rings expanding outward from center
+      const d = Math.hypot(ref.xn-0.5, ref.zn-0.5)*Math.SQRT2;
+      const p = ((d - phase*0.25) % 1 + 1) % 1;
+      h = 0.87; s = 0.9; l = 0.03 + 0.52 * bell(p);
+    } else if (demoEffect === 'twinkle') {
+      // Warm starfield — each pixel a slightly different temperature, flickers independently
+      const b = Math.pow(0.5 + 0.5*Math.sin(phase*2.5 + ref.twinkleOff), 3);
+      h = 0.06 + 0.06*Math.sin(ref.twinkleOff*5);
+      s = 0.75 + 0.25*Math.cos(ref.twinkleOff*3);
+      l = 0.02 + 0.55*b;
+    }
+
+    _dc.setHSL(h, s, l);
+    if (ref.colBuf) {
+      ref.colBuf.array[ref.bufIdx*3]   = _dc.r;
+      ref.colBuf.array[ref.bufIdx*3+1] = _dc.g;
+      ref.colBuf.array[ref.bufIdx*3+2] = _dc.b;
+      dirty.add(ref.colBuf);
+    } else ref.mat.color.setRGB(_dc.r, _dc.g, _dc.b);
+  }
+  for (const buf of dirty) buf.needsUpdate = true;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+// Circular point texture (for spires + canopy)
+const CIRCLE_TEX = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const ctx = c.getContext('2d');
+  ctx.beginPath(); ctx.arc(32, 32, 30, 0, Math.PI * 2);
+  ctx.fillStyle = '#fff'; ctx.fill();
+  return new THREE.CanvasTexture(c);
+})();
+
+// Create a tracked Points object with per-vertex colors for live updates.
+// positions3d: array of [wx, wy, wz] (Three.js world coords).
+// universe + startCh1 (1-based): pixel 0 → channels [startCh1-1, startCh1, startCh1+1], etc.
+function makeTrackedPoints(positions3d, universe, startCh1, hexColor, circular=false, size=0.35) {
+  const n = positions3d.length;
+  if (n === 0) return new THREE.Group();
+  const posArr = new Float32Array(n*3);
+  const colArr = new Float32Array(n*3);
+  const col = new THREE.Color(hexColor);
+  for (let i=0; i<n; i++) {
+    posArr[i*3]=positions3d[i][0]; posArr[i*3+1]=positions3d[i][1]; posArr[i*3+2]=positions3d[i][2];
+    colArr[i*3]=col.r; colArr[i*3+1]=col.g; colArr[i*3+2]=col.b;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(posArr, 3));
+  const colBuf = new THREE.Float32BufferAttribute(colArr, 3);
+  colBuf.usage = THREE.DynamicDrawUsage;
+  geo.setAttribute('color', colBuf);
+  const ch0base = startCh1 - 1;
+  for (let i=0; i<n; i++)
+    pixelRefs.push({ colBuf, bufIdx:i, universe, ch0: ch0base + i*3,
+                     zR: col.r, zG: col.g, zB: col.b,
+                     wx: positions3d[i][0], wy: positions3d[i][1], wz: positions3d[i][2] });
+  return new THREE.Points(geo, new THREE.PointsMaterial({
+    size, sizeAttenuation: true, vertexColors: true,
+    ...(circular ? { map: CIRCLE_TEX, alphaTest: 0.5 } : {})
+  }));
+}
+
+// Arch pixel_positions = [spanCoord, catY]; span/fixed map to Three.js X/Z.
+function makeArchPoints(pixelPositions, spanAxis, fixedValue, universe, startCh1, hexColor) {
+  const positions3d = pixelPositions.map(([a, b]) =>
+    spanAxis === 'z' ? [-a, b, fixedValue] : [-fixedValue, b, a]
+  );
+  return makeTrackedPoints(positions3d, universe, startCh1, hexColor, false, 0.25);
+}
+
+// Pixel-map data source:
+//   Online (default): loads from the wiki — no local server needed.
+//   Playa / no-internet: serve show-builder/ with python3 -m http.server 8765 and
+//   open http://localhost:8765/cathedral-3d-sim.html — auto-detected via hostname.
+// Publish script rewrites this block to const DATA = 'pixel-map' for the wiki version.
+const IS_LOCAL = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+const DATA = IS_LOCAL ? 'pixel-map' : 'https://wiki.thegothicfolly.com/sim/pixel-map';
+const load = url => fetch(url).then(r => { if (!r.ok) throw new Error(url); return r.json(); });
+
+// ── Build rose window ─────────────────────────────────────────────────────────
+// 16 petals × 14 cells = 224 ShapeGeometry meshes, each with its own material.
+// Window plane sits at Three.js Z=WZ; shapes live in the XY plane at that Z.
+function buildRoseWindow(cellData) {
+  const g = ZONES.roseWindow.group;
+  const zCol = new THREE.Color(ZONES.roseWindow.color);
+  const WX = 0.443, WY = 5.936, WZ = -8.567;
+
+  function rotatePetal(r, t, angleDeg) {
+    const a = angleDeg * Math.PI / 180;
+    return [r * Math.sin(a) + t * Math.cos(a),
+            r * Math.cos(a) - t * Math.sin(a)];
+  }
+
+  for (let k = 0; k < 16; k++) {
+    const universe = k + 1;
+    const angleDeg = k * 22.5;
+    for (const cellDef of cellData.cells) {
+      const ch0 = ROSE_CELL_CH[cellDef.cell];
+      if (ch0 === undefined) continue;
+      const shape = new THREE.Shape();
+      cellDef.ring.forEach(([r, t], i) => {
+        const [wx, wy] = rotatePetal(r, t, angleDeg);
+        i === 0 ? shape.moveTo(-wx / 1000, wy / 1000)  // negate x: camera looks from behind, flip to match audience view
+                : shape.lineTo(-wx / 1000, wy / 1000);
+      });
+      const mat = new THREE.MeshBasicMaterial({
+        color: ZONES.roseWindow.color, side: THREE.DoubleSide, transparent: true, opacity: 0.8
+      });
+      const mesh = new THREE.Mesh(new THREE.ShapeGeometry(shape), mat);
+      mesh.position.set(WX, WY, WZ);
+      g.add(mesh);
+      const cR = cellDef.ring.reduce((s,[r])=>s+r,0)/cellDef.ring.length;
+      const cT = cellDef.ring.reduce((s,[,t])=>s+t,0)/cellDef.ring.length;
+      const [crx,cry] = rotatePetal(cR, cT, angleDeg);
+      meshRefs.push({ mat, universe, ch0, zR: zCol.r, zG: zCol.g, zB: zCol.b,
+                      wx: WX-crx/1000, wy: WY+cry/1000, wz: WZ });
+    }
+  }
+}
+
+// ── Build main arches ─────────────────────────────────────────────────────────
+// No universe field in JSON; arch_id 1–5 → universes 17–21.
+function buildMainArches(data) {
+  for (const arch of data.arches) {
+    ZONES.mainArches.group.add(
+      makeArchPoints(arch.pixel_positions, 'z', arch.x_position_m,
+                     16 + arch.arch_id, 1, ZONES.mainArches.hex)
+    );
+  }
+}
+
+// ── Build mini arches ─────────────────────────────────────────────────────────
+// JSON has arch.universe (22–31), no universe_start_channel → start at ch 1.
+function buildMiniArches(leftData, rightData) {
+  for (const arch of [...leftData.arches, ...rightData.arches]) {
+    ZONES.miniArches.group.add(
+      makeArchPoints(arch.pixel_positions, 'z', arch.x_position_m,
+                     arch.universe, 1, ZONES.miniArches.hex)
+    );
+  }
+}
+
+// ── Build quad arches ─────────────────────────────────────────────────────────
+// JSON has face.universe + face.universe_start_channel (faces may share a universe).
+function buildQuadArches(allQuadData) {
+  for (const quad of allQuadData) {
+    for (const face of quad.faces) {
+      ZONES.quadArches.group.add(
+        makeArchPoints(face.pixel_positions, face.span_axis, face.fixed_axis_pos_m,
+                       face.universe, face.universe_start_channel, ZONES.quadArches.hex)
+      );
+    }
+  }
+}
+
+// ── Build spires ──────────────────────────────────────────────────────────────
+// Each strand has universe + universe_start_channel. Dots are circles; lines show cone structure.
+function buildSpires(allSpireData) {
+  for (const data of allSpireData) {
+    for (const strand of data.strands) {
+      const positions3d = strand.pixel_positions.map(([cx, cy, cz]) => [-cz, cy, cx]);
+      ZONES.spires.group.add(
+        makeTrackedPoints(positions3d, strand.universe, strand.universe_start_channel,
+                          ZONES.spires.hex, true, 0.3)
+      );
+    }
+  }
+}
+
+// ── Build spirelets ───────────────────────────────────────────────────────────
+// 20 corner cones; each pixel has universe + universe_start_channel.
+// Base Y set explicitly from spire/arch geometry (OBJ positions sit slightly above true base).
+function buildSpirelets(data) {
+  const zCol = new THREE.Color(ZONES.spirelets.color);
+  const HEIGHT = 2.0, R = 0.18;
+  const FRONT_SPIRE_BASE_Y = 12.250;
+  const BACK_SPIRE_BASE_Y  =  8.342;
+  const FRONT_TOWER_BASE_Y =  8.018;
+  const geo = new THREE.ConeGeometry(R, HEIGHT, 3, 1);
+
+  for (const pixel of data.pixels) {
+    const [catX, catY, catZ] = pixel.position;
+    let baseY;
+    if (pixel.corner.startsWith('back')) {
+      baseY = BACK_SPIRE_BASE_Y;
+    } else {
+      baseY = catY > 10 ? FRONT_SPIRE_BASE_Y : FRONT_TOWER_BASE_Y;
+    }
+    const mat = new THREE.MeshBasicMaterial({
+      color: ZONES.spirelets.color, transparent: true, opacity: 0.8
+    });
+    const cone = new THREE.Mesh(geo, mat);
+    cone.position.copy(c3(catX, baseY + HEIGHT / 2, catZ));
+    ZONES.spirelets.group.add(cone);
+    meshRefs.push({ mat, universe: pixel.universe, ch0: pixel.universe_start_channel - 1,
+                    zR: zCol.r, zG: zCol.g, zB: zCol.b,
+                    wx: -catZ, wy: baseY+HEIGHT/2, wz: catX });
+  }
+}
+
+// ── Build orbs ────────────────────────────────────────────────────────────────
+// 20 interior globe nodes, 1 pixel each, scattered through the cathedral interior.
+function buildOrbs(data) {
+  const zCol = new THREE.Color(ZONES.orbs.color);
+  const geo  = new THREE.SphereGeometry(0.3, 8, 6);
+  for (const orb of data.orbs) {
+    const [catX, catY, catZ] = orb.position;
+    const mat = new THREE.MeshBasicMaterial({
+      color: ZONES.orbs.color, transparent: true, opacity: 0.85
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.copy(c3(catX, catY, catZ));
+    ZONES.orbs.group.add(mesh);
+    meshRefs.push({ mat, universe: orb.universe, ch0: orb.universe_start_channel - 1,
+                    zR: zCol.r, zG: zCol.g, zB: zCol.b,
+                    wx: -catZ, wy: catY, wz: catX });
+  }
+}
+
+// ── Build canopy ──────────────────────────────────────────────────────────────
+// Each run has universe + universe_start_channel. Parabolic sag applied to Y.
+function buildCanopy(data) {
+  const SAG = 1.5;
+  for (const run of data.runs) {
+    const n = run.pixel_positions.length;
+    const positions3d = run.pixel_positions.map(([catX, catY, catZ], i) => {
+      const t = i / (n - 1);
+      return [-catZ, catY - SAG * 4 * t * (1 - t), catX];
+    });
+    ZONES.canopy.group.add(
+      makeTrackedPoints(positions3d, run.universe, run.universe_start_channel,
+                        ZONES.canopy.hex, true, 0.3)
+    );
+    const linePts = positions3d.map(([wx, wy, wz]) => new THREE.Vector3(wx, wy, wz));
+    ZONES.canopy.group.add(
+      new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(linePts),
+        new THREE.LineBasicMaterial({ color: ZONES.canopy.color, transparent: true, opacity: 0.35 })
+      )
+    );
+  }
+}
+
+// ── Build zone toggle UI ──────────────────────────────────────────────────────
+function buildUI() {
+  const toolbar   = document.getElementById('toolbar');
+  const container = document.getElementById('toggles');
+  const liveBadge = document.getElementById('live-badge');
+
+  // Zone toggle checkboxes
+  for (const [, z] of Object.entries(ZONES)) {
+    const row = document.createElement('label');
+    row.className = 'zrow';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.checked = true;
+    cb.addEventListener('change', () => { z.group.visible = cb.checked; });
+    const dot = document.createElement('span');
+    dot.className = 'zdot';
+    dot.style.background = z.hex;
+    const label = document.createElement('span');
+    label.className = 'zlabel';
+    label.textContent = z.label;
+    row.append(cb, dot, label);
+    container.appendChild(row);
+  }
+
+  // Compute normalized positions for demo effects
+  normalizePosRefs();
+
+  // Effect controls — inserted before live-badge so they sit in the toolbar flow
+  function ins(el) { toolbar.insertBefore(el, liveBadge); }
+  const sep = document.createElement('div'); sep.className = 'sep'; ins(sep);
+
+  const effLabel = document.createElement('label');
+  effLabel.textContent = 'EFFECT';
+  effLabel.style.cssText = 'font-size:12px;color:#888;';
+  ins(effLabel);
+
+  const effSel = document.createElement('select');
+  [['zone','zone colors'], ['lr-sweep','left → right'], ['rise','rise'],
+   ['fb-sweep','front → back'], ['radial','radial pulse'], ['twinkle','twinkle']
+  ].forEach(([v,lbl]) => {
+    const o = document.createElement('option'); o.value=v; o.textContent=lbl;
+    if (v === demoEffect) o.selected = true;
+    effSel.appendChild(o);
+  });
+  effSel.addEventListener('change', () => { demoEffect = effSel.value; });
+  ins(effSel);
+
+  const spLabel = document.createElement('label');
+  spLabel.textContent = 'SPEED';
+  spLabel.style.cssText = 'font-size:12px;color:#888;';
+  ins(spLabel);
+
+  const spSlider = document.createElement('input');
+  spSlider.type='range'; spSlider.min='0.1'; spSlider.max='3';
+  spSlider.step='0.1'; spSlider.value=String(demoSpeed);
+  spSlider.style.cssText = 'width:70px;accent-color:#f90;';
+  spSlider.addEventListener('input', () => { demoSpeed = parseFloat(spSlider.value); });
+  ins(spSlider);
+
+  toolbar.style.display = 'flex';
+  document.getElementById('loading').style.display = 'none';
+  resize();
+}
+
+// ── Load all data and build scene ─────────────────────────────────────────────
+const QUAD_NAMES = [
+  'back-bottom-left', 'back-bottom-right',
+  'back-top-left',    'back-top-right',
+  'front-top-left',   'front-top-right',
+];
+
+Promise.all([
+  load(`${DATA}/cell-polygons.json`),
+  load(`${DATA}/arch-led-positions.json`),
+  load(`${DATA}/arch-led-positions-mini-left.json`),
+  load(`${DATA}/arch-led-positions-mini-right.json`),
+  ...QUAD_NAMES.map(n => load(`${DATA}/arch-led-positions-quad-${n}.json`)),
+  load(`${DATA}/spire-led-positions-front-left.json`),
+  load(`${DATA}/spire-led-positions-front-right.json`),
+  load(`${DATA}/spire-led-positions-back-left.json`),
+  load(`${DATA}/spire-led-positions-back-right.json`),
+  load(`${DATA}/spires-corners-led-positions.json`),
+  load(`${DATA}/canopy-led-positions.json`),
+  load(`${DATA}/orbs-led-positions.json`),
+]).then(([cellPolygons, mainArches, miniLeft, miniRight, ...rest]) => {
+  const quadData   = rest.slice(0, 6);
+  const [spFL, spFR, spBL, spBR, spirelets, canopy, orbs] = rest.slice(6);
+
+  buildRoseWindow(cellPolygons);
+  buildMainArches(mainArches);
+  buildMiniArches(miniLeft, miniRight);
+  buildQuadArches(quadData);
+  buildSpires([spFL, spFR, spBL, spBR]);
+  buildSpirelets(spirelets);
+  buildCanopy(canopy);
+  buildOrbs(orbs);
+  buildUI();
+  startRelay();
+
+}).catch(err => {
+  document.getElementById('loading').textContent = `Error: ${err.message}`;
+  console.error(err);
+});
+
+// ── Render loop ───────────────────────────────────────────────────────────────
+function animate(ts) {
+  requestAnimationFrame(animate);
+  if (!isLive && lastDemoTs !== null) animPhase += (ts - lastDemoTs) / 1000 * demoSpeed;
+  lastDemoTs = ts;
+  controls.update();
+  if (isLive) updateLiveColors();
+  else        updateDemoColors(animPhase);
+  renderer.render(scene, camera);
+}
+requestAnimationFrame(animate);
+
+</script>
+</body>
+</html>

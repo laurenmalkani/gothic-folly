@@ -1,0 +1,500 @@
+<?xml version="1.0"?>
+<xsequence BaseChannel="0" ChanCtrlBasic="0" ChanCtrlColor="0" FixedPointTiming="1" ModelBlending="true">
+  <head>
+    <version>2026.08</version>
+    <author></author>
+    <author-email></author-email>
+    <author-website></author-website>
+    <song></song>
+    <artist></artist>
+    <album></album>
+    <MusicURL></MusicURL>
+    <comment></comment>
+    <sequenceTiming>50 ms</sequenceTiming>
+    <sequenceType>Animation</sequenceType>
+    <mediaFile></mediaFile>
+    <sequenceDuration>30.000</sequenceDuration>
+    <imageDir></imageDir>
+  </head>
+  <ColorPalettes>
+    <ColorPalette>C_BUTTON_Palette1=#d5006a,C_BUTTON_Palette2=#f4007a,C_BUTTON_Palette3=#ff1c8d,C_BUTTON_Palette4=#ff64b1,C_BUTTON_Palette5=#ff93c9,C_BUTTON_Palette6=#ffb3d9,C_BUTTON_Palette7=#ffcce6,C_BUTTON_Palette8=#ffe8f3,C_CHECKBOXBRIGHTNESSLEVEL=0,C_CHECKBOX_Chroma=0,C_CHECKBOX_MusicSparkles=0,C_CHECKBOX_Palette1=1,C_CHECKBOX_Palette2=1,C_CHECKBOX_Palette3=1,C_CHECKBOX_Palette4=1,C_CHECKBOX_Palette5=1,C_CHECKBOX_Palette6=1,C_CHECKBOX_Palette7=0,C_CHECKBOX_Palette8=0,C_SLIDER_SparkleFrequency=0</ColorPalette>
+  </ColorPalettes>
+  <EffectDB>
+    <Effect>E_CHECKBOX_Bars_3D=0,E_CHECKBOX_Bars_Gradient=1,E_CHECKBOX_Bars_Highlight=0,E_CHECKBOX_Bars_UseFirstColorForHighlight=0,E_CHOICE_Bars_Direction=Right,E_SLIDER_Bars_BarCount=1,E_TEXTCTRL_Bars_Cycles=6.6,T_CHECKBOX_Canvas=0,T_CHECKBOX_LayerMorph=0,T_CHOICE_LayerMethod=Normal,T_SLIDER_EffectLayerMix=0</Effect>
+  </EffectDB>
+  <SequenceMedia />
+  <DataLayers>
+    <DataLayer lor_params="0" channel_offset="0" num_channels="0" num_frames="0" data="&lt;rendered: erase-mode>" source="&lt;auto-generated>" name="Nutcracker" />
+  </DataLayers>
+  <DisplayElements>
+    <Element collapsed="false" type="timing" name="New Timing" visible="true" views=",Master View" active="true" />
+    <Element collapsed="false" type="model" name="Arch Main 1" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Main 2" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Main 3" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Main 4" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Main 5" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Mini Left 1" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Mini Left 2" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Mini Left 3" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Mini Left 4" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Mini Left 5" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Mini Right 1" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Mini Right 2" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Mini Right 3" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Mini Right 4" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Mini Right 5" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Quad back-bottom-left back" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Quad back-bottom-left front" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Quad back-bottom-left left" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Quad back-bottom-left right" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Quad back-bottom-right back" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Quad back-bottom-right front" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Quad back-bottom-right left" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Quad back-bottom-right right" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Quad back-top-left back" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Quad back-top-left front" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Quad back-top-left left" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Quad back-top-left right" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Quad back-top-right back" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Quad back-top-right front" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Quad back-top-right left" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Quad back-top-right right" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Quad front-top-left back" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Quad front-top-left front" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Quad front-top-left left" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Quad front-top-left right" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Quad front-top-right back" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Quad front-top-right front" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Quad front-top-right left" visible="true" />
+    <Element collapsed="false" type="model" name="Arch Quad front-top-right right" visible="true" />
+    <Element collapsed="false" type="model" name="Arches" visible="true" />
+    <Element collapsed="false" type="model" name="Arches-Main" visible="true" />
+    <Element collapsed="false" type="model" name="Arches-Mini" visible="true" />
+    <Element collapsed="false" type="model" name="Arches-Mini-Left" visible="true" />
+    <Element collapsed="false" type="model" name="Arches-Mini-Right" visible="true" />
+    <Element collapsed="false" type="model" name="Arches-Quad-back-bottom-left" visible="true" />
+    <Element collapsed="false" type="model" name="Arches-Quad-back-bottom-right" visible="true" />
+    <Element collapsed="false" type="model" name="Arches-Quad-back-top-left" visible="true" />
+    <Element collapsed="false" type="model" name="Arches-Quad-back-top-right" visible="true" />
+    <Element collapsed="false" type="model" name="Arches-Quad-front-top-left" visible="true" />
+    <Element collapsed="false" type="model" name="Arches-Quad-front-top-right" visible="true" />
+    <Element collapsed="false" type="model" name="Arches-Quads-All" visible="true" />
+    <Element collapsed="false" type="model" name="Canopy" visible="true" />
+    <Element collapsed="false" type="model" name="Canopy-Front-Left-to-Back-Left-1" visible="true" />
+    <Element collapsed="false" type="model" name="Canopy-Front-Left-to-Back-Left-2" visible="true" />
+    <Element collapsed="false" type="model" name="Canopy-Front-Left-to-Back-Right" visible="true" />
+    <Element collapsed="false" type="model" name="Canopy-Front-Right-to-Back-Left" visible="true" />
+    <Element collapsed="false" type="model" name="Canopy-Front-Right-to-Back-Right-1" visible="true" />
+    <Element collapsed="false" type="model" name="Canopy-Front-Right-to-Back-Right-2" visible="true" />
+    <Element collapsed="false" type="model" name="Cathedral" visible="true" />
+    <Element collapsed="false" type="model" name="Orb-00" visible="true" />
+    <Element collapsed="false" type="model" name="Orb-01" visible="true" />
+    <Element collapsed="false" type="model" name="Orb-02" visible="true" />
+    <Element collapsed="false" type="model" name="Orb-03" visible="true" />
+    <Element collapsed="false" type="model" name="Orb-04" visible="true" />
+    <Element collapsed="false" type="model" name="Orb-05" visible="true" />
+    <Element collapsed="false" type="model" name="Orb-06" visible="true" />
+    <Element collapsed="false" type="model" name="Orb-07" visible="true" />
+    <Element collapsed="false" type="model" name="Orb-08" visible="true" />
+    <Element collapsed="false" type="model" name="Orb-09" visible="true" />
+    <Element collapsed="false" type="model" name="Orb-10" visible="true" />
+    <Element collapsed="false" type="model" name="Orb-11" visible="true" />
+    <Element collapsed="false" type="model" name="Orb-12" visible="true" />
+    <Element collapsed="false" type="model" name="Orb-13" visible="true" />
+    <Element collapsed="false" type="model" name="Orb-14" visible="true" />
+    <Element collapsed="false" type="model" name="Orb-15" visible="true" />
+    <Element collapsed="false" type="model" name="Orb-16" visible="true" />
+    <Element collapsed="false" type="model" name="Orb-17" visible="true" />
+    <Element collapsed="false" type="model" name="Orb-18" visible="true" />
+    <Element collapsed="false" type="model" name="Orb-19" visible="true" />
+    <Element collapsed="false" type="model" name="Orbs-Group" visible="true" />
+    <Element collapsed="false" type="model" name="Rose Window" visible="true" />
+    <Element collapsed="false" type="model" name="Spire-Back-Left" visible="true" />
+    <Element collapsed="false" type="model" name="Spire-Back-Right" visible="true" />
+    <Element collapsed="false" type="model" name="Spire-Front-Left" visible="true" />
+    <Element collapsed="false" type="model" name="Spire-Front-Right" visible="true" />
+    <Element collapsed="false" type="model" name="Spirelet-Back-Left-1" visible="true" />
+    <Element collapsed="false" type="model" name="Spirelet-Back-Left-2" visible="true" />
+    <Element collapsed="false" type="model" name="Spirelet-Back-Left-3" visible="true" />
+    <Element collapsed="false" type="model" name="Spirelet-Back-Left-4" visible="true" />
+    <Element collapsed="false" type="model" name="Spirelet-Back-Right-1" visible="true" />
+    <Element collapsed="false" type="model" name="Spirelet-Back-Right-2" visible="true" />
+    <Element collapsed="false" type="model" name="Spirelet-Back-Right-3" visible="true" />
+    <Element collapsed="false" type="model" name="Spirelet-Back-Right-4" visible="true" />
+    <Element collapsed="false" type="model" name="Spirelet-Front-Left-1" visible="true" />
+    <Element collapsed="false" type="model" name="Spirelet-Front-Left-2" visible="true" />
+    <Element collapsed="false" type="model" name="Spirelet-Front-Left-3" visible="true" />
+    <Element collapsed="false" type="model" name="Spirelet-Front-Left-4" visible="true" />
+    <Element collapsed="false" type="model" name="Spirelet-Front-Left-5" visible="true" />
+    <Element collapsed="false" type="model" name="Spirelet-Front-Left-6" visible="true" />
+    <Element collapsed="false" type="model" name="Spirelet-Front-Right-1" visible="true" />
+    <Element collapsed="false" type="model" name="Spirelet-Front-Right-2" visible="true" />
+    <Element collapsed="false" type="model" name="Spirelet-Front-Right-3" visible="true" />
+    <Element collapsed="false" type="model" name="Spirelet-Front-Right-4" visible="true" />
+    <Element collapsed="false" type="model" name="Spirelet-Front-Right-5" visible="true" />
+    <Element collapsed="false" type="model" name="Spirelet-Front-Right-6" visible="true" />
+    <Element collapsed="false" type="model" name="Spirelets" visible="true" />
+    <Element collapsed="false" type="model" name="Spirelets-Back-Left" visible="true" />
+    <Element collapsed="false" type="model" name="Spirelets-Back-Right" visible="true" />
+    <Element collapsed="false" type="model" name="Spirelets-Front-Left" visible="true" />
+    <Element collapsed="false" type="model" name="Spirelets-Front-Right" visible="true" />
+    <Element collapsed="false" type="model" name="Spires" visible="true" />
+    <Element collapsed="false" type="model" name="Spires-Main" visible="true" />
+  </DisplayElements>
+  <ElementEffects>
+    <Element type="timing" name="New Timing">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Main 1">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Main 2">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Main 3">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Main 4">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Main 5">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Mini Left 1">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Mini Left 2">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Mini Left 3">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Mini Left 4">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Mini Left 5">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Mini Right 1">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Mini Right 2">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Mini Right 3">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Mini Right 4">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Mini Right 5">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Quad back-bottom-left back">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Quad back-bottom-left front">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Quad back-bottom-left left">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Quad back-bottom-left right">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Quad back-bottom-right back">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Quad back-bottom-right front">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Quad back-bottom-right left">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Quad back-bottom-right right">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Quad back-top-left back">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Quad back-top-left front">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Quad back-top-left left">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Quad back-top-left right">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Quad back-top-right back">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Quad back-top-right front">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Quad back-top-right left">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Quad back-top-right right">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Quad front-top-left back">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Quad front-top-left front">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Quad front-top-left left">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Quad front-top-left right">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Quad front-top-right back">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Quad front-top-right front">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Quad front-top-right left">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arch Quad front-top-right right">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arches">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arches-Main">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arches-Mini">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arches-Mini-Left">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arches-Mini-Right">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arches-Quad-back-bottom-left">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arches-Quad-back-bottom-right">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arches-Quad-back-top-left">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arches-Quad-back-top-right">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arches-Quad-front-top-left">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arches-Quad-front-top-right">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Arches-Quads-All">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Canopy">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Canopy-Front-Left-to-Back-Left-1">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Canopy-Front-Left-to-Back-Left-2">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Canopy-Front-Left-to-Back-Right">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Canopy-Front-Right-to-Back-Left">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Canopy-Front-Right-to-Back-Right-1">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Canopy-Front-Right-to-Back-Right-2">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Cathedral">
+      <EffectLayer>
+        <Effect ref="0" name="Bars" selected="1" startTime="0" endTime="30100" palette="0" />
+      </EffectLayer>
+    </Element>
+    <Element type="model" name="Orb-00">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Orb-01">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Orb-02">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Orb-03">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Orb-04">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Orb-05">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Orb-06">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Orb-07">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Orb-08">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Orb-09">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Orb-10">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Orb-11">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Orb-12">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Orb-13">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Orb-14">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Orb-15">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Orb-16">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Orb-17">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Orb-18">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Orb-19">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Orbs-Group">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Rose Window">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Spire-Back-Left">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Spire-Back-Right">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Spire-Front-Left">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Spire-Front-Right">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Spirelet-Back-Left-1">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Spirelet-Back-Left-2">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Spirelet-Back-Left-3">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Spirelet-Back-Left-4">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Spirelet-Back-Right-1">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Spirelet-Back-Right-2">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Spirelet-Back-Right-3">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Spirelet-Back-Right-4">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Spirelet-Front-Left-1">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Spirelet-Front-Left-2">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Spirelet-Front-Left-3">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Spirelet-Front-Left-4">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Spirelet-Front-Left-5">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Spirelet-Front-Left-6">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Spirelet-Front-Right-1">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Spirelet-Front-Right-2">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Spirelet-Front-Right-3">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Spirelet-Front-Right-4">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Spirelet-Front-Right-5">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Spirelet-Front-Right-6">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Spirelets">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Spirelets-Back-Left">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Spirelets-Back-Right">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Spirelets-Front-Left">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Spirelets-Front-Right">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Spires">
+      <EffectLayer />
+    </Element>
+    <Element type="model" name="Spires-Main">
+      <EffectLayer />
+    </Element>
+  </ElementEffects>
+  <lastView>0</lastView>
+  <TimingTags>
+    <Tag number="0" position="-1" />
+    <Tag number="1" position="-1" />
+    <Tag number="2" position="-1" />
+    <Tag number="3" position="-1" />
+    <Tag number="4" position="-1" />
+    <Tag number="5" position="-1" />
+    <Tag number="6" position="-1" />
+    <Tag number="7" position="-1" />
+    <Tag number="8" position="-1" />
+    <Tag number="9" position="-1" />
+  </TimingTags>
+</xsequence>

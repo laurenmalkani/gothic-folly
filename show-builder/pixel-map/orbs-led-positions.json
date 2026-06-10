@@ -1,0 +1,226 @@
+{
+  "n_orbs": 20,
+  "universe": 48,
+  "orbs": [
+    {
+      "orb_id": 0,
+      "obj_name": "Object",
+      "position": [
+        -6.2522,
+        3.0981,
+        4.6465
+      ],
+      "universe": 48,
+      "universe_start_channel": 1
+    },
+    {
+      "orb_id": 1,
+      "obj_name": "Object.001",
+      "position": [
+        -6.2522,
+        5.9815,
+        6.9548
+      ],
+      "universe": 48,
+      "universe_start_channel": 4
+    },
+    {
+      "orb_id": 2,
+      "obj_name": "Object.002",
+      "position": [
+        -9.8002,
+        6.9322,
+        8.1954
+      ],
+      "universe": 48,
+      "universe_start_channel": 7
+    },
+    {
+      "orb_id": 3,
+      "obj_name": "Object.003",
+      "position": [
+        -9.6812,
+        7.8827,
+        -8.9602
+      ],
+      "universe": 48,
+      "universe_start_channel": 10
+    },
+    {
+      "orb_id": 4,
+      "obj_name": "Object.004",
+      "position": [
+        -8.6306,
+        2.0433,
+        -8.8166
+      ],
+      "universe": 48,
+      "universe_start_channel": 13
+    },
+    {
+      "orb_id": 5,
+      "obj_name": "Object.005",
+      "position": [
+        -8.5845,
+        10.9637,
+        -6.4673
+      ],
+      "universe": 48,
+      "universe_start_channel": 16
+    },
+    {
+      "orb_id": 6,
+      "obj_name": "Object.006",
+      "position": [
+        -11.1361,
+        10.9637,
+        5.6955
+      ],
+      "universe": 48,
+      "universe_start_channel": 19
+    },
+    {
+      "orb_id": 7,
+      "obj_name": "Object.007",
+      "position": [
+        -8.654,
+        6.9292,
+        4.5374
+      ],
+      "universe": 48,
+      "universe_start_channel": 22
+    },
+    {
+      "orb_id": 8,
+      "obj_name": "Object.008",
+      "position": [
+        -6.2522,
+        7.8594,
+        3.3677
+      ],
+      "universe": 48,
+      "universe_start_channel": 25
+    },
+    {
+      "orb_id": 9,
+      "obj_name": "Object.009",
+      "position": [
+        -6.2522,
+        1.0964,
+        7.072
+      ],
+      "universe": 48,
+      "universe_start_channel": 28
+    },
+    {
+      "orb_id": 10,
+      "obj_name": "Object.010",
+      "position": [
+        -11.0588,
+        5.0855,
+        4.4553
+      ],
+      "universe": 48,
+      "universe_start_channel": 31
+    },
+    {
+      "orb_id": 11,
+      "obj_name": "Object.011",
+      "position": [
+        -8.654,
+        3.9344,
+        8.0686
+      ],
+      "universe": 48,
+      "universe_start_channel": 34
+    },
+    {
+      "orb_id": 12,
+      "obj_name": "Object.012",
+      "position": [
+        -11.1012,
+        2.0469,
+        3.6712
+      ],
+      "universe": 48,
+      "universe_start_channel": 37
+    },
+    {
+      "orb_id": 13,
+      "obj_name": "Object.013",
+      "position": [
+        -11.1012,
+        0.9874,
+        -5.4021
+      ],
+      "universe": 48,
+      "universe_start_channel": 40
+    },
+    {
+      "orb_id": 14,
+      "obj_name": "Object.014",
+      "position": [
+        -8.6306,
+        4.0337,
+        -6.2779
+      ],
+      "universe": 48,
+      "universe_start_channel": 43
+    },
+    {
+      "orb_id": 15,
+      "obj_name": "Object.015",
+      "position": [
+        -6.1741,
+        7.9509,
+        -6.3634
+      ],
+      "universe": 48,
+      "universe_start_channel": 46
+    },
+    {
+      "orb_id": 16,
+      "obj_name": "Object.016",
+      "position": [
+        -8.6306,
+        8.8315,
+        -5.096
+      ],
+      "universe": 48,
+      "universe_start_channel": 49
+    },
+    {
+      "orb_id": 17,
+      "obj_name": "Object.017",
+      "position": [
+        -11.1012,
+        7.2362,
+        -7.4209
+      ],
+      "universe": 48,
+      "universe_start_channel": 52
+    },
+    {
+      "orb_id": 18,
+      "obj_name": "Object.018",
+      "position": [
+        -6.1973,
+        5.0764,
+        -7.727
+      ],
+      "universe": 48,
+      "universe_start_channel": 55
+    },
+    {
+      "orb_id": 19,
+      "obj_name": "Object.019",
+      "position": [
+        -8.6306,
+        5.9837,
+        -5.2012
+      ],
+      "universe": 48,
+      "universe_start_channel": 58
+    }
+  ]
+}

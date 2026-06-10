@@ -1,0 +1,305 @@
+{
+  "_notes": [
+    "Canonical sACN/E1.31 universe and channel assignments for all Gothic Folly LED zones.",
+    "All pixels are RGB (3 channels each). 510 channels max per universe.",
+    "",
+    "ROSE WINDOW — universes 1–16",
+    "  16 universes, one per petal, clockwise from 12 o'clock.",
+    "  14 RGB cells per universe = 42 channels (channels 1–42).",
+    "  Cell order within each universe (hub → rim, a before c within each row):",
+    "    Ch  1– 3 : 1b  (row 1, center — innermost)",
+    "    Ch  4– 6 : 2a  (row 2, left)",
+    "    Ch  7– 9 : 2c  (row 2, right)",
+    "    Ch 10–12 : 3b  (row 3, center)",
+    "    Ch 13–15 : 4a  (row 4, left)",
+    "    Ch 16–18 : 4c  (row 4, right)",
+    "    Ch 19–21 : 5a  (row 5, left)",
+    "    Ch 22–24 : 5b  (row 5, center)",
+    "    Ch 25–27 : 5c  (row 5, right)",
+    "    Ch 28–30 : 6a  (row 6, left)",
+    "    Ch 31–33 : 6c  (row 6, right)",
+    "    Ch 34–36 : 7a  (row 7, left — outermost)",
+    "    Ch 37–39 : 7b  (row 7, center — outermost)",
+    "    Ch 40–42 : 7c  (row 7, right — outermost)",
+    "  F48V5 outputs 1–16 → SRx4 (1 board, 16 outputs)",
+    "",
+    "ARCHES — universes 17–21",
+    "  5 universes, one per arch (front to back).",
+    "  SK9822 30 LEDs/m, 5 LEDs per pixel, 1.05 fudge factor.",
+    "  Strip runs interior face: left leg base → crown → right leg base.",
+    "  F48V5: 1× SRx2 (8 outputs, 5 used) — 1 Cat6 run, left leg base cluster.",
+    "",
+    "ARCHES-MINI-LEFT — universes 22–26",
+    "  5 universes, one per mini arch on the left side (front to back).",
+    "  SK9822 30 LEDs/m, 5 LEDs per pixel, 1.05 fudge factor.",
+    "  Strip runs interior face: left leg base → crown → right leg base.",
+    "  F48V5: 1× SRx2 (8 outputs, 5 used) — 1 Cat6 run.",
+    "",
+    "ARCHES-MINI-RIGHT — universes 27–31",
+    "  5 universes, one per mini arch on the right side (front to back).",
+    "  SK9822 30 LEDs/m, 5 LEDs per pixel, 1.05 fudge factor.",
+    "  Strip runs interior face: left leg base → crown → right leg base.",
+    "  F48V5: 1× SRx2 (8 outputs, 5 used) — 1 Cat6 run.",
+    "",
+    "sACN multicast: universe U → 239.255.0.U",
+    "Development: point controller at relay IP → relay forwards to browser sim.",
+    "Production: point controller at F48V5 IP (same universes/channels)."
+  ],
+
+  "f48v5_outputs": {
+    "rose_window":       "1–16",
+    "arches":            "17–21",
+    "arches_mini_left":  "22–26",
+    "arches_mini_right": "27–31",
+    "arches_quad":       "32–41 (10 universes; packed — back-top 1 universe each, others 2)",
+    "used":              31,
+    "remaining":         17,
+    "total":             48,
+    "note":              "Quad arches use 10 universes (32–41). 7 outputs remain on first F48V5 (42–48) for future zones."
+  },
+
+  "zones": {
+
+    "rose_window": {
+      "universes":            "1–16",
+      "universe_start":       1,
+      "universe_end":         16,
+      "total_pixels":         224,
+      "pixels_per_universe":  14,
+      "channels_per_universe":42,
+      "leds_per_pixel":       1,
+      "strip":                "WS2815 12V 60/m IP65",
+      "receiver":             "SRx4 (1 board, 16 outputs)",
+      "cell_order": ["1b","2a","2c","3b","4a","4c","5a","5b","5c","6a","6c","7a","7b","7c"],
+      "universes_detail": [
+        {"universe": 1,  "petal": 0,  "angle_deg": 0.0},
+        {"universe": 2,  "petal": 1,  "angle_deg": 22.5},
+        {"universe": 3,  "petal": 2,  "angle_deg": 45.0},
+        {"universe": 4,  "petal": 3,  "angle_deg": 67.5},
+        {"universe": 5,  "petal": 4,  "angle_deg": 90.0},
+        {"universe": 6,  "petal": 5,  "angle_deg": 112.5},
+        {"universe": 7,  "petal": 6,  "angle_deg": 135.0},
+        {"universe": 8,  "petal": 7,  "angle_deg": 157.5},
+        {"universe": 9,  "petal": 8,  "angle_deg": 180.0},
+        {"universe": 10, "petal": 9,  "angle_deg": 202.5},
+        {"universe": 11, "petal": 10, "angle_deg": 225.0},
+        {"universe": 12, "petal": 11, "angle_deg": 247.5},
+        {"universe": 13, "petal": 12, "angle_deg": 270.0},
+        {"universe": 14, "petal": 13, "angle_deg": 292.5},
+        {"universe": 15, "petal": 14, "angle_deg": 315.0},
+        {"universe": 16, "petal": 15, "angle_deg": 337.5}
+      ]
+    },
+
+    "arches": {
+      "universes":      "17–21",
+      "universe_start": 17,
+      "universe_end":   21,
+      "passthrough":    true,
+      "strip":          "SK9822 24V 30/m (assumed — pending F48V5 compatibility confirmation)",
+      "leds_per_meter": 30,
+      "leds_per_pixel": 5,
+      "fudge_factor":   1.05,
+      "receiver":       "SRx2 (1 board, 8 outputs, 5 used — left leg base cluster)",
+      "totals": {
+        "total_leds":    3527,
+        "total_pixels":  703,
+        "universes_used": 5
+      },
+      "universes_detail": [
+        {
+          "arch_id":        1,
+          "label":          "Arch Main 1 (front, audience-facing — longest)",
+          "universe":       17,
+          "f48v5_output":   17,
+          "path_length_m":  23.32,
+          "total_leds":     734,
+          "total_pixels":   146,
+          "total_channels": 438
+        },
+        {
+          "arch_id":        2,
+          "label":          "Arch Main 2",
+          "universe":       18,
+          "f48v5_output":   18,
+          "path_length_m":  22.89,
+          "total_leds":     720,
+          "total_pixels":   144,
+          "total_channels": 432
+        },
+        {
+          "arch_id":        3,
+          "label":          "Arch Main 3",
+          "universe":       19,
+          "f48v5_output":   19,
+          "path_length_m":  22.34,
+          "total_leds":     703,
+          "total_pixels":   140,
+          "total_channels": 420
+        },
+        {
+          "arch_id":        4,
+          "label":          "Arch Main 4",
+          "universe":       20,
+          "f48v5_output":   20,
+          "path_length_m":  21.94,
+          "total_leds":     691,
+          "total_pixels":   138,
+          "total_channels": 414
+        },
+        {
+          "arch_id":        5,
+          "label":          "Arch Main 5 (back, near canopy — shortest)",
+          "universe":       21,
+          "f48v5_output":   21,
+          "path_length_m":  21.58,
+          "total_leds":     679,
+          "total_pixels":   135,
+          "total_channels": 405
+        }
+      ]
+    },
+
+    "arches_mini_left": {
+      "universes":      "22–26",
+      "universe_start": 22,
+      "universe_end":   26,
+      "passthrough":    true,
+      "strip":          "SK9822 24V 30/m",
+      "leds_per_meter": 30,
+      "leds_per_pixel": 5,
+      "fudge_factor":   1.05,
+      "receiver":       "SRx2 (1 board, 8 outputs, 5 used)",
+      "totals": {
+        "total_leds":     2065,
+        "total_pixels":   411,
+        "universes_used": 5
+      },
+      "universes_detail": [
+        {"arch_id": 1, "label": "Arch Mini Left 1 (front — longest)", "universe": 22, "f48v5_output": 22, "path_length_m": 15.57, "total_leds": 490, "total_pixels": 98, "total_channels": 294},
+        {"arch_id": 2, "label": "Arch Mini Left 2",                   "universe": 23, "f48v5_output": 23, "path_length_m": 13.98, "total_leds": 440, "total_pixels": 88, "total_channels": 264},
+        {"arch_id": 3, "label": "Arch Mini Left 3",                   "universe": 24, "f48v5_output": 24, "path_length_m": 12.68, "total_leds": 399, "total_pixels": 79, "total_channels": 237},
+        {"arch_id": 4, "label": "Arch Mini Left 4",                   "universe": 25, "f48v5_output": 25, "path_length_m": 12.14, "total_leds": 382, "total_pixels": 76, "total_channels": 228},
+        {"arch_id": 5, "label": "Arch Mini Left 5 (back — shortest)", "universe": 26, "f48v5_output": 26, "path_length_m": 11.26, "total_leds": 354, "total_pixels": 70, "total_channels": 210}
+      ]
+    },
+
+    "arches_mini_right": {
+      "universes":      "27–31",
+      "universe_start": 27,
+      "universe_end":   31,
+      "passthrough":    true,
+      "strip":          "SK9822 24V 30/m",
+      "leds_per_meter": 30,
+      "leds_per_pixel": 5,
+      "fudge_factor":   1.05,
+      "receiver":       "SRx2 (1 board, 8 outputs, 5 used)",
+      "totals": {
+        "total_leds":     2065,
+        "total_pixels":   411,
+        "universes_used": 5
+      },
+      "universes_detail": [
+        {"arch_id": 1, "label": "Arch Mini Right 1 (front — longest)", "universe": 27, "f48v5_output": 27, "path_length_m": 15.57, "total_leds": 490, "total_pixels": 98, "total_channels": 294},
+        {"arch_id": 2, "label": "Arch Mini Right 2",                   "universe": 28, "f48v5_output": 28, "path_length_m": 13.98, "total_leds": 440, "total_pixels": 88, "total_channels": 264},
+        {"arch_id": 3, "label": "Arch Mini Right 3",                   "universe": 29, "f48v5_output": 29, "path_length_m": 12.68, "total_leds": 399, "total_pixels": 79, "total_channels": 237},
+        {"arch_id": 4, "label": "Arch Mini Right 4",                   "universe": 30, "f48v5_output": 30, "path_length_m": 12.14, "total_leds": 382, "total_pixels": 76, "total_channels": 228},
+        {"arch_id": 5, "label": "Arch Mini Right 5 (back — shortest)", "universe": 31, "f48v5_output": 31, "path_length_m": 11.26, "total_leds": 354, "total_pixels": 70, "total_channels": 210}
+      ]
+    },
+
+    "arches_quad": {
+      "universes":      "32–41",
+      "universe_start": 32,
+      "universe_end":   41,
+      "passthrough":    true,
+      "strip":          "SK9822 24V 30/m",
+      "leds_per_meter": 30,
+      "leds_per_pixel": 5,
+      "fudge_factor":   1.05,
+      "receiver":       "SRx1 (1 board per quad, 4 outputs — 4 faces)",
+      "packing_note":   "back-top quads (148px) fit in 1 universe; front-top/back-bottom (250–256px) use 2 universes (Z-faces + X-faces split). 10 universes total, well within 17 remaining F48V5 outputs.",
+      "totals": {
+        "total_leds":     6584,
+        "total_pixels":   1308,
+        "faces":          24,
+        "quads":          6,
+        "universes_used": 10
+      },
+      "universes_detail": [
+        {"universe": 32}, {"universe": 33}, {"universe": 34}, {"universe": 35},
+        {"universe": 36}, {"universe": 37}, {"universe": 38}, {"universe": 39},
+        {"universe": 40}, {"universe": 41}
+      ],
+      "quads_detail": [
+        {"quad": "front-top-left",    "universes": "32–33", "faces": 4, "px_per_face": "62–63", "path_m": "9.9–10.0", "packing": "z-faces u32, x-faces u33"},
+        {"quad": "front-top-right",   "universes": "34–35", "faces": 4, "px_per_face": "62–63", "path_m": "9.9–10.0", "packing": "z-faces u34, x-faces u35"},
+        {"quad": "back-top-left",     "universes": "36",    "faces": 4, "px_per_face": "37",    "path_m": "5.9",      "packing": "all 4 faces u36"},
+        {"quad": "back-top-right",    "universes": "37",    "faces": 4, "px_per_face": "37",    "path_m": "5.9",      "packing": "all 4 faces u37"},
+        {"quad": "back-bottom-left",  "universes": "38–39", "faces": 4, "px_per_face": "64",    "path_m": "10.3",     "packing": "z-faces u38, x-faces u39"},
+        {"quad": "back-bottom-right", "universes": "40–41", "faces": 4, "px_per_face": "64",    "path_m": "10.3",     "packing": "z-faces u40, x-faces u41"}
+      ]
+    },
+
+    "spires_main": {
+      "universes":      "42–45",
+      "universe_start": 42,
+      "universe_end":   45,
+      "passthrough":    true,
+      "strip":          "WS2811 globe nodes 24V RGB, 50cm spacing",
+      "leds_per_pixel": 1,
+      "receiver":       "SRx1 (1 board per spire, 6 outputs — 6 strands)",
+      "note":           "4 spires × 112px × 3ch = 336ch each, fits in 1 universe per spire (8 strands × 14 pixels per spire)",
+      "totals": {
+        "total_pixels":   448,
+        "universes_used": 4
+      },
+      "universes_detail": [
+        {"universe": 42, "spire": "front-left"},
+        {"universe": 43, "spire": "front-right"},
+        {"universe": 44, "spire": "back-left"},
+        {"universe": 45, "spire": "back-right"}
+      ]
+    },
+
+    "spires_corners_and_canopy": {
+      "universes":      "46–47",
+      "universe_start": 46,
+      "universe_end":   47,
+      "passthrough":    true,
+      "strip":          "WS2811 globe nodes 24V RGB, 50cm spacing (canopy); single RGB node (corner spires)",
+      "leds_per_pixel": 1,
+      "receiver":       "SRx1 boards at each corner — corner spires and canopy runs co-located",
+      "packing_note":   "Canopy runs terminate at corner spire clusters. Pack together: u46 = corner spires (60ch) + canopy pt.1 (450ch); u47 = canopy pt.2 (~270ch)",
+      "totals": {
+        "corner_spire_pixels": 20,
+        "canopy_pixels":       240,
+        "total_pixels":        260,
+        "universes_used":      2
+      },
+      "universes_detail": [
+        {"universe": 46},
+        {"universe": 47}
+      ]
+    },
+
+    "orbs": {
+      "universes":      "48",
+      "universe_start": 48,
+      "universe_end":   48,
+      "passthrough":    true,
+      "strip":          "WS2811 globe nodes 24V RGB, single pixel per orb",
+      "leds_per_pixel": 1,
+      "receiver":       "SRx1 — spare slots at corner/canopy nodes",
+      "note":           "~26 interior orbs × 3ch = 78ch. 432ch spare in universe 48.",
+      "totals": {
+        "total_pixels":   26,
+        "universes_used": 1
+      },
+      "universes_detail": [
+        {"universe": 48}
+      ]
+    }
+
+  }
+}

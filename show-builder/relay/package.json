@@ -1,0 +1,12 @@
+{
+  "name": "gothic-folly-relay",
+  "version": "1.0.0",
+  "description": "sACN E1.31 → WebSocket relay for Gothic Folly rose window simulator",
+  "main": "relay.js",
+  "scripts": {
+    "start": "node relay.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

@@ -1,0 +1,8 @@
+# Dependencies
+node_modules/
+
+# macOS
+.DS_Store
+
+# xLights rendered output (large; regenerated from .xsq)
+*.fseq
