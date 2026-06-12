@@ -1,0 +1,15 @@
+{
+  "name": "gothic-folly-arch-simulator",
+  "version": "0.1.0",
+  "description": "Browser-based arch LED simulator for The Gothic Folly — Environmental Stories (Burning Man 2026). Receives sACN from TouchDesigner via a combined relay and visualises 5 arches in real time, with a standalone four-phase ambient demo.",
+  "type": "commonjs",
+  "main": "relay-combined.js",
+  "scripts": {
+    "relay": "node relay-combined.js",
+    "generate": "node generate-arch-positions.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "license": "MIT"
+}

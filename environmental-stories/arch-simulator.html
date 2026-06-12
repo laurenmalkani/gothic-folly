@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gothic Folly — Arch Simulator</title>
+<!--
+  Gothic Folly · Environmental Stories — Arch LED Simulator
+  ----------------------------------------------------------------------------
+  Self-contained: double-click to open in Chrome, no build step, no fetches.
+  Receives live sACN from TouchDesigner via relay-combined.js over WebSocket
+  (ws://localhost:3001). With no data it runs a four-phase ambient demo that
+  stands alone as a prototype.
+
+  Pipeline (matches the rose-window simulator):
+      TouchDesigner → sACN → relay-combined.js → WebSocket → this canvas
+
+  Arch geometry is computed here with the SAME math as generate-arch-positions.js
+  so the page needs no external CSV. 5 arches × 690 px (SK9822, 30 px/m), drawn
+  as half-ellipses; universes 17–41 (1–16 reserved for the rose window).
+-->
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #000; color: #cdd; font-family: ui-monospace, Menlo, monospace; }
+  body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; overflow: hidden; }
+  #stage { position: relative; }
+  canvas { display: block; background: #000; border-radius: 6px; box-shadow: 0 0 60px rgba(60,40,90,0.25); }
+  #toolbar {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: center;
+    padding: 10px 16px; background: #0b0b10; border: 1px solid #1c1c26; border-radius: 8px;
+    font-size: 12px; width: 1400px; max-width: 96vw;
+  }
+  .group { display: flex; align-items: center; gap: 8px; }
+  .sep { width: 1px; height: 20px; background: #24242e; }
+  #phaseName { font-weight: 700; letter-spacing: .12em; min-width: 78px; }
+  .lbl { color: #6a6a78; text-transform: uppercase; letter-spacing: .08em; }
+  .val { color: #e8e8f0; font-weight: 700; }
+  button {
+    font: inherit; font-size: 11px; font-weight: 700; letter-spacing: .06em;
+    padding: 5px 10px; color: #aab; background: #15151d; border: 1px solid #2a2a36;
+    border-radius: 5px; cursor: pointer; transition: all .12s;
+  }
+  button:hover { color: #fff; border-color: #44445a; }
+  button.active { color: #000; background: #d9c27a; border-color: #d9c27a; }
+  #live { display: inline-flex; align-items: center; gap: 6px; }
+  #liveDot { width: 9px; height: 9px; border-radius: 50%; background: #444; transition: background .2s, box-shadow .2s; }
+  #liveDot.on { background: #3ad36a; box-shadow: 0 0 8px #3ad36a; }
+  input[type=range] { width: 120px; accent-color: #d9c27a; }
+  #title { position: absolute; top: 10px; left: 14px; font-size: 11px; color: #44444f; letter-spacing: .18em; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="c" width="1400" height="400"></canvas>
+  <div id="title">THE GOTHIC FOLLY · ENVIRONMENTAL STORIES</div>
+</div>
+
+<div id="toolbar">
+  <div class="group"><span class="lbl">Phase</span><span id="phaseName">SUN</span></div>
+  <div class="sep"></div>
+  <div class="group">
+    <button data-phase="0">SUN</button>
+    <button data-phase="1">HEAT</button>
+    <button data-phase="2">RAIN</button>
+    <button data-phase="3">GROWTH</button>
+    <button id="autoBtn" class="active">AUTO</button>
+  </div>
+  <div class="sep"></div>
+  <div class="group"><span class="lbl">BPM</span><span id="bpmVal" class="val">120</span>
+    <input id="bpm" type="range" min="60" max="180" step="1" value="120"></div>
+  <div class="sep"></div>
+  <div class="group" id="live"><span id="liveDot"></span><span class="lbl">Live</span></div>
+</div>
+
+<script>
+'use strict';
+const TAU = Math.PI * 2;
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+// ── Arch geometry — identical math to generate-arch-positions.js ──────────────
+const ARCHES = 5, PIXELS_PER_ARCH = 690;
+const SLOT_W = W / ARCHES, ARCH_HALF_W = 118, ARCH_H = 286, BASE_Y = 366;
+const FIRST_UNIVERSE = 17, PIXELS_PER_UNIVERSE = 170;
+const UNIVERSES_PER_ARCH = Math.ceil(PIXELS_PER_ARCH / PIXELS_PER_UNIVERSE);
+
+// Resample a half-ellipse at equal arc-length steps → φ for each of n pixels.
+function archPhis(a, b, n) {
+  const STEPS = 4000, dphi = Math.PI / STEPS, cum = new Float64Array(STEPS + 1);
+  for (let i = 1; i <= STEPS; i++) {
+    const pm = (i - 0.5) * dphi;
+    cum[i] = cum[i - 1] + Math.hypot(a * Math.sin(pm), -b * Math.cos(pm)) * dphi;
+  }
+  const total = cum[STEPS], phis = new Float64Array(n);
+  let j = 0;
+  for (let p = 0; p < n; p++) {
+    const target = (n === 1 ? 0 : p / (n - 1)) * total;
+    while (j < STEPS && cum[j + 1] < target) j++;
+    const seg = cum[j + 1] - cum[j] || 1;
+    phis[p] = (j + (target - cum[j]) / seg) * dphi;
+  }
+  return phis;
+}
+
+const pixels = [];                 // flat list of all 3450 pixels
+const archPix = [];                // archPix[arch][i] = pixel object (ordered base→base)
+for (let arch = 0; arch < ARCHES; arch++) {
+  const cx = SLOT_W * arch + SLOT_W / 2;
+  const phis = archPhis(ARCH_HALF_W, ARCH_H, PIXELS_PER_ARCH);
+  const list = [];
+  for (let i = 0; i < PIXELS_PER_ARCH; i++) {
+    const phi = phis[i];
+    const px = {
+      x: cx - ARCH_HALF_W * Math.cos(phi),
+      y: BASE_Y - ARCH_H * Math.sin(phi),
+      uvx: i / (PIXELS_PER_ARCH - 1),
+      uvy: Math.sin(phi),
+      arch,
+      universe: FIRST_UNIVERSE + arch * UNIVERSES_PER_ARCH + Math.floor(i / PIXELS_PER_UNIVERSE),
+      ch0: (i % PIXELS_PER_UNIVERSE) * 3,      // 0-based offset into the universe
+    };
+    pixels.push(px); list.push(px);
+  }
+  archPix.push(list);
+}
+
+// ── Colour helpers ────────────────────────────────────────────────────────────
+const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+// 3-stop ramp at t∈[0,1]
+const ramp3 = (c0, c1, c2, t) => t < 0.5 ? mix(c0, c1, t * 2) : mix(c1, c2, (t - 0.5) * 2);
+const clamp255 = v => v < 0 ? 0 : v > 255 ? 255 : v;
+
+// Value noise (smooth, deterministic) for shimmer / organic motion.
+function hash(x, y) { const n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return n - Math.floor(n); }
+function noise2(x, y) {
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
+  const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+  const a = hash(xi, yi), b = hash(xi + 1, yi), c = hash(xi, yi + 1), d = hash(xi + 1, yi + 1);
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+
+// Additive dot with a soft halo — looks luminous on black.
+function dot(x, y, rgb, inten) {
+  if (inten <= 0.012) return;
+  ctx.fillStyle = `rgb(${clamp255(rgb[0]) | 0},${clamp255(rgb[1]) | 0},${clamp255(rgb[2]) | 0})`;
+  ctx.globalAlpha = Math.min(1, inten * 0.45);
+  ctx.beginPath(); ctx.arc(x, y, 8.5, 0, TAU); ctx.fill();      // halo / bloom
+  ctx.globalAlpha = Math.min(1, inten);
+  ctx.beginPath(); ctx.arc(x, y, 3.4, 0, TAU); ctx.fill();      // bright core
+}
+
+// ── Palettes ──────────────────────────────────────────────────────────────────
+const SUN = { gold: hex('#FFD700'), cream: hex('#FFF5C0'), deep: hex('#FF8C00') };
+const HEAT = { hot: hex('#FF4500'), mid: hex('#FF8C00'), tip: hex('#FFD700') };
+const RAIN = { white: hex('#FFFFFF'), sky: hex('#87CEEB'), deep: hex('#1E90FF') };
+const GROWTH_COLS = ['#228B22', '#9400D3', '#FF6B6B', '#FFD700'].map(hex);
+
+// ── Demo phases ───────────────────────────────────────────────────────────────
+// Each phase exposes { name, bars, fade, enter(), render(dt, beat) }. `beat`:
+//   { phase: 0..1 within the current beat, flash: pop that decays each beat,
+//     prog: 0..1 progress through this phase, amp: simulated audio amplitude }
+
+const phaseSun = {
+  name: 'SUN', bars: 16, fade: 0.42,
+  enter() {},
+  render(dt, b) {
+    // Slow breath at BPM/4, plus a radial pulse rolling out from each arch's peak.
+    const breath = 0.55 + 0.45 * Math.sin(b.breathe * TAU);
+    for (const p of pixels) {
+      const d = Math.abs(p.uvx - 0.5) * 2;                 // 0 at peak → 1 at feet
+      const ring = 0.5 + 0.5 * Math.sin((d * 3.0 - b.t * 0.9) * TAU);
+      const inten = breath * (0.32 + 0.68 * ring) * (0.5 + 0.5 * p.uvy);
+      dot(p.x, p.y, ramp3(SUN.deep, SUN.gold, SUN.cream, Math.min(1, inten)), inten * 1.05);
+    }
+  },
+};
+
+const phaseHeat = {
+  name: 'HEAT', bars: 8, fade: 0.5,
+  enter() {},
+  render(dt, b) {
+    // Upward shimmer (noise scrolling base→peak); pulses snap to every beat and
+    // the whole field intensifies across the phase.
+    const intensify = 0.7 + 0.5 * b.prog;
+    const beatPulse = 0.6 + 0.7 * b.flash;
+    for (const p of pixels) {
+      const n = noise2(p.uvx * 5 + p.arch * 10, (p.uvy - b.t * 0.6) * 6);
+      const rise = 0.25 + 0.75 * (1 - p.uvy);              // hotter near the base
+      const inten = intensify * beatPulse * (0.2 + 0.9 * n) * rise;
+      dot(p.x, p.y, ramp3(HEAT.hot, HEAT.mid, HEAT.tip, Math.min(1, inten * 0.9)), inten);
+    }
+  },
+};
+
+const phaseRain = {
+  name: 'RAIN', bars: 16, fade: 0.16,
+  drops: [],
+  enter() { this.drops.length = 0; this.splash = []; },
+  render(dt, b) {
+    const G = 1.7;                                          // gravity (arc-units/s²)
+    // Spawn — density tracks the simulated audio amplitude.
+    const density = 0.35 + 0.65 * b.amp;
+    for (let a = 0; a < ARCHES; a++) {
+      if (Math.random() < density * 0.55) {
+        this.drops.push({ arch: a, side: Math.random() < 0.5 ? -1 : 1, prog: 0, vel: 0.25 + Math.random() * 0.2 });
+      }
+    }
+    // Update + draw drops falling from peak toward a base.
+    const keep = [];
+    for (const d of this.drops) {
+      d.vel += G * dt; d.prog += d.vel * dt;
+      if (d.prog >= 1) {                                    // splash at the foot
+        this.splash.push({ arch: d.arch, side: d.side, life: 1 });
+        continue;
+      }
+      const uvx = d.side < 0 ? 0.5 * (1 - d.prog) : 0.5 + 0.5 * d.prog;
+      const px = archPix[d.arch][Math.round(uvx * (PIXELS_PER_ARCH - 1))];
+      const speed = Math.min(1, d.vel / 1.6);
+      dot(px.x, px.y, ramp3(RAIN.deep, RAIN.sky, RAIN.white, speed), 0.5 + 0.6 * speed);
+      keep.push(d);
+    }
+    this.drops = keep;
+    // Splash flashes at the bases.
+    this.splash = this.splash.filter(s => (s.life -= dt * 2.4) > 0);
+    for (const s of this.splash) {
+      const idx = s.side < 0 ? 0 : PIXELS_PER_ARCH - 1;
+      const px = archPix[s.arch][idx];
+      dot(px.x, px.y, RAIN.white, s.life * 1.4);
+      if (idx + 6 < PIXELS_PER_ARCH) dot(archPix[s.arch][idx + (s.side < 0 ? 6 : -6)].x,
+                                         archPix[s.arch][idx + (s.side < 0 ? 6 : -6)].y, RAIN.sky, s.life);
+    }
+  },
+};
+
+const phaseGrowth = {
+  name: 'GROWTH', bars: 24, fade: 0.12,
+  tendrils: [],
+  enter() { this.tendrils = []; this.seedT = 0; },
+  render(dt, b) {
+    // Coloured tendrils climb from the feet toward the peak, branching now and then.
+    this.seedT -= dt;
+    if (this.seedT <= 0 && this.tendrils.length < 14) {
+      this.seedT = 0.5 + Math.random() * 0.7;
+      this.tendrils.push(this.spawn());
+    }
+    const live = [];
+    for (const tn of this.tendrils) {
+      tn.tip += tn.spd * dt;
+      // Light the grown segment from start toward the tip; brightest at the tip.
+      const a0 = tn.start, a1 = Math.min(tn.target, tn.tip);
+      const lo = Math.min(a0, a1), hi = Math.max(a0, a1);
+      const iLo = Math.round(lo * (PIXELS_PER_ARCH - 1)), iHi = Math.round(hi * (PIXELS_PER_ARCH - 1));
+      for (let i = iLo; i <= iHi; i += 1) {
+        const px = archPix[tn.arch][i];
+        const along = (i / (PIXELS_PER_ARCH - 1) - a0) / ((a1 - a0) || 1);   // 0 root → 1 tip
+        const inten = 0.18 + 0.85 * Math.pow(Math.max(0, along), 1.5);
+        dot(px.x, px.y, tn.col, inten * (0.7 + 0.5 * b.flash));
+      }
+      // Occasional branch off the tip.
+      if (Math.random() < 0.012 && this.tendrils.length + live.length < 14) {
+        live.push({ arch: tn.arch, start: Math.min(tn.tip, tn.target), tip: Math.min(tn.tip, tn.target),
+                    target: 0.5, spd: tn.spd * (0.8 + Math.random() * 0.5),
+                    col: GROWTH_COLS[(GROWTH_COLS.indexOf(tn.col) + 1) % GROWTH_COLS.length] || tn.col });
+      }
+      if (Math.abs(tn.tip - tn.target) > 0.02 || tn.tip < tn.target + 0.4) live.push(tn);
+    }
+    this.tendrils = live.slice(0, 14);
+  },
+  spawn() {
+    const arch = (Math.random() * ARCHES) | 0;
+    const fromLeft = Math.random() < 0.5;
+    return { arch, start: fromLeft ? 0 : 1, tip: fromLeft ? 0 : 1, target: 0.5,
+             spd: (fromLeft ? 1 : -1) * (0.06 + Math.random() * 0.05),
+             col: GROWTH_COLS[(Math.random() * GROWTH_COLS.length) | 0] };
+  },
+};
+
+const PHASES = [phaseSun, phaseHeat, phaseRain, phaseGrowth];
+const CYCLE_BARS = PHASES.reduce((s, p) => s + p.bars, 0);   // 64
+
+// ── State / scheduling ────────────────────────────────────────────────────────
+let bpm = 120, beats = 0, manual = null, curIdx = -1, phaseLocalBeats = 0, last = performance.now();
+
+function autoIndex(barInCycle) {
+  let acc = 0;
+  for (let i = 0; i < PHASES.length; i++) { acc += PHASES[i].bars; if (barInCycle < acc) return i; }
+  return 0;
+}
+
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  const beatDur = 60 / bpm;
+  beats += dt / beatDur;
+  phaseLocalBeats += dt / beatDur;
+
+  // Fade-clear (creates motion trails; longer for rain/growth) then go additive.
+  const fade = live ? 1 : PHASES[Math.max(0, curIdx)].fade;
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  ctx.fillStyle = `rgba(0,0,0,${fade})`; ctx.fillRect(0, 0, W, H);
+  ctx.globalCompositeOperation = 'lighter';
+
+  if (live) { renderLive(); updateToolbar('LIVE'); return; }
+
+  // Pick the active phase (auto from the bar cycle, or a manual lock).
+  const idx = manual != null ? manual : autoIndex(Math.floor(beats / 4) % CYCLE_BARS);
+  if (idx !== curIdx) { curIdx = idx; phaseLocalBeats = 0; PHASES[idx].enter(); }
+  const ph = PHASES[idx];
+
+  const beat = {
+    t: beats * beatDur,                                    // seconds, continuous
+    phase: beats - Math.floor(beats),
+    flash: Math.pow(1 - (beats - Math.floor(beats)), 2.2),
+    breathe: beats / 4,                                    // BPM/4 breathing cycle
+    prog: Math.min(1, phaseLocalBeats / (ph.bars * 4)),
+    amp: 0.5 + 0.5 * noise2(beats * 0.12, 7.3),            // simulated audio amplitude
+  };
+  ph.render(dt, beat);
+  ctx.globalAlpha = 1;
+  updateToolbar(ph.name);
+}
+
+// ── Live sACN mode ────────────────────────────────────────────────────────────
+const liveChannels = new Map();         // universe → Uint8Array
+let live = false, liveTimer = null;
+const RELAY_URL = 'ws://localhost:3001', LIVE_TIMEOUT = 2500;
+
+function renderLive() {
+  for (const p of pixels) {
+    const ch = liveChannels.get(p.universe);
+    if (!ch || p.ch0 + 2 >= ch.length) continue;
+    const rgb = [ch[p.ch0], ch[p.ch0 + 1], ch[p.ch0 + 2]];
+    const inten = Math.max(rgb[0], rgb[1], rgb[2]) / 255;
+    if (inten > 0.02) dot(p.x, p.y, rgb, inten);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function connectRelay() {
+  let ws;
+  try { ws = new WebSocket(RELAY_URL); } catch { setTimeout(connectRelay, 3000); return; }
+  ws.onclose = () => { setLive(false); setTimeout(connectRelay, 3000); };
+  ws.onerror = () => {};
+  ws.onmessage = evt => {
+    let m; try { m = JSON.parse(evt.data); } catch { return; }
+    if (m.type !== 'universe') return;                     // arches use raw universe frames
+    liveChannels.set(m.universe, new Uint8Array(m.channels));
+    if (!live) setLive(true);
+    clearTimeout(liveTimer);
+    liveTimer = setTimeout(() => { liveChannels.clear(); setLive(false); }, LIVE_TIMEOUT);
+  };
+}
+function setLive(on) { live = on; document.getElementById('liveDot').classList.toggle('on', on); }
+
+// ── Toolbar ───────────────────────────────────────────────────────────────────
+const phaseNameEl = document.getElementById('phaseName');
+const bpmEl = document.getElementById('bpm'), bpmValEl = document.getElementById('bpmVal');
+const autoBtn = document.getElementById('autoBtn');
+const phaseBtns = [...document.querySelectorAll('button[data-phase]')];
+
+function updateToolbar(name) { phaseNameEl.textContent = name; }
+function refreshButtons() {
+  autoBtn.classList.toggle('active', manual == null);
+  phaseBtns.forEach(btn => btn.classList.toggle('active', manual == +btn.dataset.phase));
+}
+phaseBtns.forEach(btn => btn.addEventListener('click', () => { manual = +btn.dataset.phase; refreshButtons(); }));
+autoBtn.addEventListener('click', () => { manual = null; refreshButtons(); });
+bpmEl.addEventListener('input', () => { bpm = +bpmEl.value; bpmValEl.textContent = bpm; });
+
+connectRelay();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
