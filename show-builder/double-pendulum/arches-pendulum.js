@@ -49,21 +49,65 @@ const CONFIG = {
   port: 5568,
   fps:  40,
 
-  // Which zones to light (CSV `zone` values).
-  zones: ['main-arch', 'mini-arch-left', 'mini-arch-right', 'orb'],
+  // Which zones to light (CSV `zone` values) — every arch in the setup, plus orbs.
+  zones: [
+    'main-arch', 'mini-arch-left', 'mini-arch-right',
+    'quad-arch-back-bottom-left',  'quad-arch-back-bottom-right',
+    'quad-arch-back-top-left',     'quad-arch-back-top-right',
+    'quad-arch-front-top-left',    'quad-arch-front-top-right',
+    'orb',
+  ],
+
+  // Audio reactivity. The browser sim captures mic/line-in, runs FFT + beat
+  // detection, and ships features back over the relay WebSocket (see
+  // cathedral-3d-sim.html). Disable to run the pendulum free of music.
+  audio: {
+    enabled:     true,
+    relayUrl:    'ws://localhost:3001',
+    // Headline effect: the song's smoothed loudness drives the pendulum's playback
+    // SPEED. The pendulum free-runs (energy conserved) so it never stalls — the
+    // music only stretches/compresses time. Quiet parts swing slow, drops rip.
+    speedMin:    0.04,    // time scale during the quietest passages (languid)
+    speedMax:    0.45,    // time scale during the most intense passages (fast sweep)
+    envAttack:   0.15,    // per-frame smoothing toward louder (fast rise)
+    envRelease:  0.025,   // per-frame smoothing toward quieter (slow fall)
+    adaptRate:   0.0008,  // how fast the quiet-floor / loud-ceiling refs track the song
+    // Loudness also brightens & widens the sweep.
+    rmsBright:   1.2,     // loudness → extra paint brightness (rms is small, so >1)
+    rmsBand:     0.5,     // loudness → wider cursor band
+    rmsGain:     4.0,     // scales raw rms up for the brightness/width mapping
+
+    // Frequency → zone. Each band lifts the brightness of its zone(s) when it's
+    // energetic, so different instruments "land" on different parts of the rig.
+    bandZones: {
+      sub:  { boost: 1.4, zones: ['main-arch'] },
+      low:  { boost: 1.2, zones: ['mini-arch-left', 'mini-arch-right'] },
+      mid:  { boost: 1.0, zones: ['quad-arch-back-bottom-left',  'quad-arch-back-bottom-right',
+                                  'quad-arch-back-top-left',      'quad-arch-back-top-right',
+                                  'quad-arch-front-top-left',     'quad-arch-front-top-right'] },
+      high: { boost: 1.8, zones: ['orb'] },
+    },
+
+    // Tempo → overall swing rate, layered on top of the loudness mapping.
+    bpmInfluence: 0.6,    // 0 = ignore tempo, 1 = full tempo scaling of speed
+    refBpm:       120,    // this BPM maps to 1× (faster songs sweep faster)
+    beatFlash:    0.6,    // brief brightness pop on each beat-grid pulse
+  },
 
   // Pendulum — slowed down for a graceful swing.
   pivot:   { z: 0.5, y: 0.6 },
   L1:      0.30,
   L2:      0.26,
   m1:      1.0,
-  m2:      1.0,
+  m2:      1.4,          // heavier lower bob → more vigorous, chaotic motion
   g:       9.8,
   damping: 0.0,
-  speed:   0.4,          // <1 slows the whole simulation (time scale)
-  substeps: 10,
-  theta1_0: Math.PI * 0.56,
-  theta2_0: Math.PI * 0.50,
+  speed:   0.15,         // <1 slows the whole simulation (time scale)
+  substeps: 12,
+  // Start with both arms raised high and asymmetric → high energy, the arms
+  // tumble over the top and the motion never repeats (true chaotic regime).
+  theta1_0: Math.PI * 0.90,
+  theta2_0: Math.PI * 0.75,
 
   // Look & feel.
   bandWidth:    0.03,    // cursor width in arc units (smaller = more "one-by-one")
@@ -228,12 +272,48 @@ function buildPacket(universe, data) {
   return buf;
 }
 
+// ── Audio link ────────────────────────────────────────────────────────────────
+// Consumes {type:'audio', rms, bass, treble, beat} pushed by the browser sim
+// through relay.js. Uses Node's built-in global WebSocket (Node ≥ 22) — no deps.
+// `ttl` counts down each frame; when it hits 0 we've lost audio and fall back to
+// the free-running pendulum. `beatSeen` latches a beat until renderFrame consumes it.
+const audioState = { rms: 0, bass: 0, treble: 0, beatSeen: false, ttl: 0,
+                     env: 0, eLo: 0, eHi: 0.001, beatFlash: 0,
+                     bands: { sub: 0, low: 0, mid: 0, high: 0 }, bpm: 0 };
+
+// Invert bandZones → per-zone list of {band, boost} for the paint loop.
+const zoneBands = {};  // zoneName → [{ band, boost }]
+for (const [band, def] of Object.entries(CONFIG.audio.bandZones)) {
+  for (const z of def.zones) (zoneBands[z] ||= []).push({ band, boost: def.boost });
+}
+
+function connectAudio() {
+  if (!CONFIG.audio.enabled || typeof WebSocket === 'undefined') return;
+  let ws;
+  try { ws = new WebSocket(CONFIG.audio.relayUrl); }
+  catch { setTimeout(connectAudio, 2000); return; }
+
+  ws.addEventListener('open',  () => console.log('Audio link connected → reacting to music.'));
+  ws.addEventListener('close', () => { audioState.ttl = 0; setTimeout(connectAudio, 2000); });
+  ws.addEventListener('error', () => {});  // 'close' handles the reconnect
+  ws.addEventListener('message', ev => {
+    let m; try { m = JSON.parse(ev.data); } catch { return; }
+    if (m.type !== 'audio') return;
+    audioState.rms    = m.rms    || 0;
+    audioState.bass   = m.bass   || 0;
+    audioState.treble = m.treble || 0;
+    if (m.bands) audioState.bands = m.bands;
+    audioState.bpm = m.bpm || 0;
+    if (m.beat) audioState.beatSeen = true;
+    audioState.ttl = CONFIG.fps;  // ~1s of grace before we declare audio lost
+  });
+}
+
 // ── Render loop ─────────────────────────────────────────────────────────────────
 const socket = dgram.createSocket('udp4');
 const dmx = new Map();
 for (const u of universes) dmx.set(u, new Uint8Array(CHANNELS));
 
-const dt = (1 / CONFIG.fps) * CONFIG.speed;
 let frame = 0;
 const invGamma = 1 / CONFIG.gamma;
 const sigma2 = 2 * CONFIG.bandWidth * CONFIG.bandWidth;
@@ -243,8 +323,39 @@ const ucHistory = new Float64Array(maxDelay + 1).fill(0.5);
 let histHead = 0;
 
 function renderFrame() {
-  // 1. Advance the (slowed) pendulum.
-  const h = dt / CONFIG.substeps;
+  // 0. Music → playback speed. Smooth the loudness into an envelope, then map it
+  //    (gain-adaptively, so it works at any mic level) onto a speed range. The
+  //    pendulum free-runs with conserved energy, so it NEVER stalls — the music
+  //    only stretches/compresses time. Quiet → slow swing, intense → fast sweep.
+  const A = CONFIG.audio;
+  audioState.ttl = Math.max(0, audioState.ttl - 1);
+  const haveAudio = audioState.ttl > 0;
+  let effSpeed = CONFIG.speed;
+  if (haveAudio) {
+    const inst = audioState.rms + 0.3 * audioState.treble + 0.15 * audioState.bass;
+    const k = inst > audioState.env ? A.envAttack : A.envRelease;
+    audioState.env += (inst - audioState.env) * k;
+    // Track the quiet floor / loud ceiling so the mapping self-calibrates to the song.
+    if (audioState.env > audioState.eHi) audioState.eHi = audioState.env;
+    else audioState.eHi += (audioState.env - audioState.eHi) * A.adaptRate;
+    if (audioState.env < audioState.eLo) audioState.eLo = audioState.env;
+    else audioState.eLo += (audioState.env - audioState.eLo) * A.adaptRate;
+    const range = audioState.eHi - audioState.eLo;
+    const norm = range > 1e-4
+      ? Math.min(1, Math.max(0, (audioState.env - audioState.eLo) / range)) : 0.5;
+    effSpeed = A.speedMin + (A.speedMax - A.speedMin) * norm;
+    // Tempo layers on top: faster songs sweep faster overall.
+    if (audioState.bpm > 0) {
+      const tempoFactor = audioState.bpm / A.refBpm;
+      effSpeed *= 1 + A.bpmInfluence * (tempoFactor - 1);
+    }
+    if (audioState.beatSeen) { audioState.beatSeen = false; audioState.beatFlash = A.beatFlash; }
+    audioState.beatFlash *= 0.85;
+  }
+
+  // 1. Advance the pendulum at the music-modulated time scale.
+  const frameDt = (1 / CONFIG.fps) * effSpeed;
+  const h = frameDt / CONFIG.substeps;
   for (let i = 0; i < CONFIG.substeps; i++) state = rk4Step(state, h);
 
   // 2. Cursor: lower-bob horizontal → uc ∈ [0,1].
@@ -265,11 +376,26 @@ function renderFrame() {
   const baseHue = (t / CONFIG.hueCycleSec) * 360;
 
   // 5. Paint the cursor band (max-blend so it turns LEDs on and the fade trails).
+  //    Audio modulates it: loudness → brighter, wider band; bass/treble → zone boosts.
+  const loud = haveAudio ? Math.min(1, audioState.rms * A.rmsGain + audioState.beatFlash) : 0;
+  const reactBright = 1 + A.rmsBright * loud;
+  const widen = 1 + A.rmsBand * loud;
+  const sig2 = sigma2 * widen * widen;
+  // Per-zone frequency boost: each band lifts its mapped zones (computed once/frame).
+  const zoneMul = {};
+  if (haveAudio) {
+    for (const z in zoneBands) {
+      let mul = 1;
+      for (const { band, boost } of zoneBands[z]) mul += boost * (audioState.bands[band] || 0);
+      zoneMul[z] = mul;
+    }
+  }
   for (let i = 0; i < targets.length; i++) {
     const p = targets[i];
     const ucDelayed = ucHistory[(histHead - p.delay + ucHistory.length) % ucHistory.length];
     const d = p.u - ucDelayed;
-    const bright = Math.exp(-(d * d) / sigma2);
+    let bright = reactBright * Math.exp(-(d * d) / sig2);
+    if (haveAudio && zoneMul[p.zone]) bright *= zoneMul[p.zone];
     if (bright < 0.004) continue;
     const [r, g, b] = hsv2rgb(baseHue + CONFIG.heightSpread * p.hue, CONFIG.saturation, bright);
     const o = i * 3;
@@ -299,8 +425,10 @@ function toByte(v) {
 }
 
 const timer = setInterval(renderFrame, Math.round(1000 / CONFIG.fps));
+if (CONFIG.audio.enabled) connectAudio();
 
 console.log(`Streaming arches-pendulum → sACN ${CONFIG.host}:${CONFIG.port} @ ${CONFIG.fps}fps (speed ${CONFIG.speed}×)`);
+if (CONFIG.audio.enabled) console.log(`Audio-reactive: waiting for features from the sim at ${CONFIG.audio.relayUrl} (click “Enable Audio” there).`);
 console.log('Make sure relay.js is running and the simulator is open. Press Ctrl-C to stop.');
 
 process.on('SIGINT', () => {

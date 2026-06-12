@@ -121,6 +121,14 @@ const wss    = new WebSocket.Server({ server });
 
 wss.on('connection', ws => {
   console.log(`[WS] client connected  (${wss.clients.size} total)`);
+  // Forward client→client messages (e.g. browser audio features → show scripts).
+  // The relay normally only pushes sACN/WLED out; this lets the sim feed data back.
+  ws.on('message', data => {
+    const msg = data.toString();
+    for (const client of wss.clients) {
+      if (client !== ws && client.readyState === WebSocket.OPEN) client.send(msg);
+    }
+  });
   ws.on('close', () =>
     console.log(`[WS] client disconnected (${wss.clients.size} total)`));
 });

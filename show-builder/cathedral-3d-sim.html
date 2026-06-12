@@ -126,6 +126,7 @@ let lastDemoTs  = null;
 const RELAY_URL       = 'ws://localhost:3001';
 const LIVE_TIMEOUT_MS = 3000;
 const liveChannels    = new Map();  // universe → Uint8Array
+let relayWs           = null;       // shared so the audio analyser can send features back
 let isLive            = false;
 let liveTimer         = null;
 const pixelRefs       = [];  // { colBuf, bufIdx, universe, ch0, zR, zG, zB }
@@ -178,6 +179,7 @@ function startRelay() {
   let ws;
   function connect() {
     ws = new WebSocket(RELAY_URL);
+    relayWs = ws;
     ws.onopen  = () => {};
     ws.onclose = () => { setLive(false); setTimeout(connect, 3000); };
     ws.onerror = () => {};
@@ -205,6 +207,150 @@ function startRelay() {
     };
   }
   connect();
+}
+
+// ── Audio capture → features → relay ──────────────────────────────────────────
+// Captures mic/line-in via Web Audio and ships a feature packet over the relay:
+//   { type:'audio', rms, bass, treble,
+//     bands:{sub,low,mid,high},   // adaptively-normalised frequency bands 0..1
+//     bpm,                        // estimated tempo (0 = not locked)
+//     beat, beatPhase }           // beat-grid pulse + 0..1 phase within the beat
+// The show script (arches-pendulum.js) maps these to motion/colour. getUserMedia
+// needs a user gesture, hence the toolbar button.
+let audioCtx = null, audioRAF = 0;
+
+async function toggleAudio(btn) {
+  if (audioCtx) {                                   // already running → stop
+    cancelAnimationFrame(audioRAF);
+    audioCtx.close(); audioCtx = null;
+    btn.textContent = '🎤 ENABLE AUDIO'; btn.style.color = '#aaa';
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+    });
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const src      = audioCtx.createMediaStreamSource(stream);
+    const analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 2048;
+    analyser.smoothingTimeConstant = 0.5;
+    src.connect(analyser);
+
+    const freq     = new Uint8Array(analyser.frequencyBinCount);
+    const prevFreq = new Float32Array(analyser.frequencyBinCount);
+    const time     = new Uint8Array(analyser.fftSize);
+    const binHz = audioCtx.sampleRate / analyser.fftSize;
+    const bin   = hz => Math.max(1, Math.min(freq.length - 1, Math.round(hz / binHz)));
+
+    // Frequency bands (skip <45Hz to dodge mains hum / DC). Each is adaptively
+    // normalised by a slowly-decaying running max so it stays responsive at any gain.
+    const BANDS = [
+      { name: 'sub',  lo: bin(45),   hi: bin(100)  },
+      { name: 'low',  lo: bin(100),  hi: bin(300)  },
+      { name: 'mid',  lo: bin(300),  hi: bin(2000) },
+      { name: 'high', lo: bin(2000), hi: bin(8000) },
+    ];
+    for (const b of BANDS) b.max = 0.01;
+    const rawBand = b => {
+      let t = 0; for (let i = b.lo; i <= b.hi; i++) t += freq[i];
+      return t / ((b.hi - b.lo + 1) * 255);
+    };
+
+    // ── Tempo (BPM) via spectral-flux onsets + autocorrelation ──────────────────
+    // Lag bounds are derived from the MEASURED frame rate, not a hardcoded 60fps —
+    // Macs run requestAnimationFrame at 120fps (ProMotion), which would otherwise
+    // throw the tempo search into the wrong range.
+    const HIST = 1024;                    // onset history (~8.5s @120fps, ~17s @60fps)
+    const onsetHist = new Float32Array(HIST);
+    let histPos = 0, frames = 0;
+    const BPM_MIN = 70, BPM_MAX = 180;
+    let bpm = 0, bpmSmooth = 0, periodFrames = 0, beatPhase = 0;
+    let lastT = performance.now(), frameDt = 1 / 60;
+
+    function estimateTempo() {
+      const lagMin = Math.max(2, Math.round((60 / BPM_MAX) / frameDt));
+      const lagMax = Math.min(Math.floor(HIST / 2), Math.round((60 / BPM_MIN) / frameDt));
+      let bestLag = 0, bestScore = 0;
+      for (let lag = lagMin; lag <= lagMax; lag++) {
+        let c = 0; const span = HIST - lag;
+        for (let i = 0; i < span; i++) {
+          c += onsetHist[(histPos + i) % HIST] * onsetHist[(histPos + i + lag) % HIST];
+        }
+        c /= span;                        // normalise out the lag-length bias
+        if (c > bestScore) { bestScore = c; bestLag = lag; }
+      }
+      if (bestLag && bestScore > 1e-5) {
+        periodFrames = bestLag;
+        const inst = 60 / (bestLag * frameDt);
+        bpmSmooth = bpmSmooth ? bpmSmooth * 0.8 + inst * 0.2 : inst;  // stabilise jitter
+        bpm = Math.round(bpmSmooth);
+      }
+    }
+
+    btn.textContent = '🎤 AUDIO ON'; btn.style.color = '#4f4';
+
+    function tick() {
+      audioRAF = requestAnimationFrame(tick);
+      if (!audioCtx) return;
+      const now = performance.now();
+      frameDt = frameDt * 0.9 + ((now - lastT) / 1000) * 0.1;  // smoothed real dt
+      lastT = now;
+
+      analyser.getByteFrequencyData(freq);
+      analyser.getByteTimeDomainData(time);
+
+      // Overall loudness (time-domain RMS).
+      let s = 0;
+      for (let i = 0; i < time.length; i++) { const v = (time[i] - 128) / 128; s += v * v; }
+      const rms = Math.min(1, Math.sqrt(s / time.length) * 2.5);
+
+      // Frequency bands, adaptively normalised.
+      const bands = {};
+      for (const b of BANDS) {
+        const r = rawBand(b);
+        b.max = Math.max(r, b.max * 0.999);          // running max, slow decay
+        bands[b.name] = +(Math.min(1, r / b.max)).toFixed(3);
+      }
+
+      // Spectral flux onset = sum of positive bin increases since last frame.
+      let flux = 0;
+      for (let i = 0; i < freq.length; i++) {
+        const d = freq[i] - prevFreq[i];
+        if (d > 0) flux += d;
+        prevFreq[i] = freq[i];
+      }
+      flux /= (freq.length * 255);
+      onsetHist[histPos] = flux;
+      histPos = (histPos + 1) % HIST;
+      frames++;
+      if (frames > 120 && frames % 30 === 0) estimateTempo();  // re-estimate a few ×/s after warmup
+
+      // Beat grid: advance phase at the locked tempo; emit a beat when it wraps.
+      let beat = false;
+      if (periodFrames > 0) {
+        beatPhase += 1 / periodFrames;
+        if (beatPhase >= 1) { beatPhase -= 1; beat = true; }
+      }
+
+      if (relayWs && relayWs.readyState === WebSocket.OPEN) {
+        relayWs.send(JSON.stringify({
+          type: 'audio',
+          rms:    +rms.toFixed(3),
+          bass:   bands.low,    // back-compat aliases for the speed mapping
+          treble: bands.high,
+          bands,
+          bpm,
+          beat,
+          beatPhase: +beatPhase.toFixed(3),
+        }));
+      }
+    }
+    tick();
+  } catch (e) {
+    btn.textContent = '🎤 AUDIO FAILED'; btn.style.color = '#f55';
+    console.error('Audio capture error:', e);
+  }
 }
 
 // ── Demo color engine ─────────────────────────────────────────────────────────
@@ -558,6 +704,15 @@ function buildUI() {
   spSlider.style.cssText = 'width:70px;accent-color:#f90;';
   spSlider.addEventListener('input', () => { demoSpeed = parseFloat(spSlider.value); });
   ins(spSlider);
+
+  // Audio capture toggle — feeds beat/rms/bass/treble back to audio-reactive shows.
+  const audioSep = document.createElement('div'); audioSep.className = 'sep'; ins(audioSep);
+  const audioBtn = document.createElement('button');
+  audioBtn.textContent = '🎤 ENABLE AUDIO';
+  audioBtn.style.cssText = 'font-family:monospace;font-size:12px;font-weight:bold;' +
+    'padding:4px 8px;background:#222;color:#aaa;border:1px solid #444;border-radius:3px;cursor:pointer;';
+  audioBtn.addEventListener('click', () => toggleAudio(audioBtn));
+  ins(audioBtn);
 
   toolbar.style.display = 'flex';
   document.getElementById('loading').style.display = 'none';
