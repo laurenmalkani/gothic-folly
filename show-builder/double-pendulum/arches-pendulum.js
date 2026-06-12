@@ -55,7 +55,7 @@ const CONFIG = {
     'quad-arch-back-bottom-left',  'quad-arch-back-bottom-right',
     'quad-arch-back-top-left',     'quad-arch-back-top-right',
     'quad-arch-front-top-left',    'quad-arch-front-top-right',
-    'orb',
+    'canopy', 'orb',
   ],
 
   // Audio reactivity. The browser sim captures mic/line-in, runs FFT + beat
@@ -81,7 +81,7 @@ const CONFIG = {
     // energetic, so different instruments "land" on different parts of the rig.
     bandZones: {
       sub:  { boost: 1.4, zones: ['main-arch'] },
-      low:  { boost: 1.2, zones: ['mini-arch-left', 'mini-arch-right'] },
+      low:  { boost: 1.2, zones: ['mini-arch-left', 'mini-arch-right', 'canopy'] },
       mid:  { boost: 1.0, zones: ['quad-arch-back-bottom-left',  'quad-arch-back-bottom-right',
                                   'quad-arch-back-top-left',      'quad-arch-back-top-right',
                                   'quad-arch-front-top-left',     'quad-arch-front-top-right'] },
@@ -91,7 +91,25 @@ const CONFIG = {
     // Tempo → overall swing rate, layered on top of the loudness mapping.
     bpmInfluence: 0.6,    // 0 = ignore tempo, 1 = full tempo scaling of speed
     refBpm:       120,    // this BPM maps to 1× (faster songs sweep faster)
-    beatFlash:    0.6,    // brief brightness pop on each beat-grid pulse
+  },
+
+  // Motion dynamics — surface the double-pendulum's complexity instead of
+  // collapsing it to one sliding dot, and keep it perpetually lively.
+  motion: {
+    twoBands:    true,    // render BOTH links: the chaotic tip + the smoother elbow
+    elbowBright: 0.55,    // elbow band brightness relative to the tip (the tip is the star)
+    elbowHue:    175,     // hue offset (deg) for the elbow band → contrasting colour
+    velBright:   1.0,     // angular speed → extra brightness (fast whips flare)
+    velWiden:    1.6,     // angular speed → wider band (motion blur on fast swings)
+    velHue:      90,      // angular speed → hue shift (deg) so colour churns with the chaos
+    velRef:      6.0,     // rad/s that reads as "full speed" for the velocity reactions
+    energyTrack: 0.02,    // gentle pull of kinetic energy toward target (anti-settle, anti-runaway)
+    energyMin:   10,      // target w1²+w2² when quiet / no audio (gentle tumbling)
+    energyMax:   60,      // target w1²+w2² when loud           (vigorous whipping)
+    beatKick:    3.0,     // angular impulse on each beat — PUMPS the swing in its
+                          // current direction (+ a little chaos) so it swings to the beat
+    headBright:  2.2,     // peak brightness of the cursor head — the bright colour POP
+    beatBright:  2.0,     // extra head brightness on the beat (the flash that dies into a trail)
   },
 
   // Pendulum — slowed down for a graceful swing.
@@ -110,9 +128,9 @@ const CONFIG = {
   theta2_0: Math.PI * 0.75,
 
   // Look & feel.
-  bandWidth:    0.03,    // cursor width in arc units (smaller = more "one-by-one")
+  bandWidth:    0.04,    // cursor width in arc units (smaller = more "one-by-one")
   depthRippleSec: 0.8,   // seconds for a swing to travel front→back through the arches
-  trailDecay:   0.94,    // per-frame fade (higher = longer-lived faded pattern)
+  trailDecay:   0.965,   // per-frame fade (higher = longer-lived comet trail)
   hueCycleSec:  50,      // seconds for the base hue to traverse the full spectrum
   heightSpread: 130,     // degrees of hue gradient from bottom to top of the scene
   saturation:   1.0,
@@ -278,7 +296,7 @@ function buildPacket(universe, data) {
 // `ttl` counts down each frame; when it hits 0 we've lost audio and fall back to
 // the free-running pendulum. `beatSeen` latches a beat until renderFrame consumes it.
 const audioState = { rms: 0, bass: 0, treble: 0, beatSeen: false, ttl: 0,
-                     env: 0, eLo: 0, eHi: 0.001, beatFlash: 0,
+                     env: 0, eLo: 0, eHi: 0.001, beatFlash: 0, norm: 0.5,
                      bands: { sub: 0, low: 0, mid: 0, high: 0 }, bpm: 0 };
 
 // Invert bandZones → per-zone list of {band, boost} for the paint loop.
@@ -318,8 +336,11 @@ let frame = 0;
 const invGamma = 1 / CONFIG.gamma;
 const sigma2 = 2 * CONFIG.bandWidth * CONFIG.bandWidth;
 
-// Ring buffer of recent cursor positions, so deeper arches can read older values.
-const ucHistory = new Float64Array(maxDelay + 1).fill(0.5);
+// Ring buffers of recent cursor positions (tip + elbow), so deeper arches can
+// read older values for the front→back depth ripple.
+const histLen   = maxDelay + 1;
+const ucTipHist = new Float64Array(histLen).fill(0.5);
+const ucElbHist = new Float64Array(histLen).fill(0.5);
 let histHead = 0;
 
 function renderFrame() {
@@ -327,7 +348,7 @@ function renderFrame() {
   //    (gain-adaptively, so it works at any mic level) onto a speed range. The
   //    pendulum free-runs with conserved energy, so it NEVER stalls — the music
   //    only stretches/compresses time. Quiet → slow swing, intense → fast sweep.
-  const A = CONFIG.audio;
+  const A = CONFIG.audio, M = CONFIG.motion;
   audioState.ttl = Math.max(0, audioState.ttl - 1);
   const haveAudio = audioState.ttl > 0;
   let effSpeed = CONFIG.speed;
@@ -341,16 +362,39 @@ function renderFrame() {
     if (audioState.env < audioState.eLo) audioState.eLo = audioState.env;
     else audioState.eLo += (audioState.env - audioState.eLo) * A.adaptRate;
     const range = audioState.eHi - audioState.eLo;
-    const norm = range > 1e-4
+    audioState.norm = range > 1e-4
       ? Math.min(1, Math.max(0, (audioState.env - audioState.eLo) / range)) : 0.5;
-    effSpeed = A.speedMin + (A.speedMax - A.speedMin) * norm;
+    effSpeed = A.speedMin + (A.speedMax - A.speedMin) * audioState.norm;
     // Tempo layers on top: faster songs sweep faster overall.
     if (audioState.bpm > 0) {
       const tempoFactor = audioState.bpm / A.refBpm;
       effSpeed *= 1 + A.bpmInfluence * (tempoFactor - 1);
     }
-    if (audioState.beatSeen) { audioState.beatSeen = false; audioState.beatFlash = A.beatFlash; }
-    audioState.beatFlash *= 0.85;
+    if (audioState.beatSeen) {
+      audioState.beatSeen = false;
+      audioState.beatFlash = 1;                 // full flash on the beat, decays into a trail
+      // PUMP the swing on the beat: push the tip the way it's already going (like
+      // pushing a playground swing) + a chaotic nudge so it never locks into a loop.
+      const dir = state[3] >= 0 ? 1 : -1;
+      state[3] += M.beatKick * dir + (Math.random() - 0.5) * M.beatKick;
+      state[1] += (Math.random() - 0.5) * M.beatKick;
+    }
+    audioState.beatFlash *= 0.88;
+  } else {
+    audioState.norm = 0;
+  }
+
+  // Energy homeostasis: gently steer kinetic energy toward a target so the
+  // pendulum keeps tumbling (never settles) without running away from the beat
+  // kicks. Target rises with loudness → gentle when quiet, whippy when loud.
+  const targetE = M.energyMin + (M.energyMax - M.energyMin) * audioState.norm;
+  const E = state[1] * state[1] + state[3] * state[3];
+  if (E > 0.05) {
+    const corr = 1 + (Math.sqrt(targetE / E) - 1) * M.energyTrack;
+    state[1] *= corr; state[3] *= corr;
+  } else {                                  // nearly stopped → jolt it back to life
+    state[1] += (Math.random() - 0.5) * 2;
+    state[3] += (Math.random() - 0.5) * 2;
   }
 
   // 1. Advance the pendulum at the music-modulated time scale.
@@ -358,14 +402,20 @@ function renderFrame() {
   const h = frameDt / CONFIG.substeps;
   for (let i = 0; i < CONFIG.substeps; i++) state = rk4Step(state, h);
 
-  // 2. Cursor: lower-bob horizontal → uc ∈ [0,1].
-  let sc = (lowerBobZ() - CONFIG.pivot.z) / (CONFIG.L1 + CONFIG.L2);
-  sc = sc < -1 ? -1 : sc > 1 ? 1 : sc;
-  const uc = (sc + 1) / 2;
+  // 2. Two cursors from the linkage: the chaotic tip and the smoother elbow.
+  let scTip = (lowerBobZ() - CONFIG.pivot.z) / (CONFIG.L1 + CONFIG.L2);
+  scTip = scTip < -1 ? -1 : scTip > 1 ? 1 : scTip;
+  const ucTip   = (scTip + 1) / 2;
+  const ucElbow = (Math.sin(state[0]) + 1) / 2;   // elbow = first link's horizontal
 
-  // Record the current cursor; deeper LEDs will read older entries (ripple).
-  histHead = (histHead + 1) % ucHistory.length;
-  ucHistory[histHead] = uc;
+  // Per-link angular speed (0..1) drives brightness / width / hue of each band.
+  const vTip   = Math.min(1, Math.abs(state[3]) / M.velRef);
+  const vElbow = Math.min(1, Math.abs(state[1]) / M.velRef);
+
+  // Record both cursors; deeper LEDs read older entries (front→back ripple).
+  histHead = (histHead + 1) % histLen;
+  ucTipHist[histHead] = ucTip;
+  ucElbHist[histHead] = ucElbow;
 
   // 3. Fade the persistence buffer.
   const decay = CONFIG.trailDecay;
@@ -375,12 +425,27 @@ function renderFrame() {
   const t = (frame / CONFIG.fps) * CONFIG.speed;
   const baseHue = (t / CONFIG.hueCycleSec) * 360;
 
-  // 5. Paint the cursor band (max-blend so it turns LEDs on and the fade trails).
-  //    Audio modulates it: loudness → brighter, wider band; bass/treble → zone boosts.
-  const loud = haveAudio ? Math.min(1, audioState.rms * A.rmsGain + audioState.beatFlash) : 0;
+  // 5. Paint both cursor bands (max-blend so LEDs light, then fade as trails).
+  //    Loudness brightens/widens; each link's angular SPEED flares & widens its
+  //    band and churns its hue; frequency bands boost their mapped zones.
+  const loud = haveAudio ? Math.min(1, audioState.rms * A.rmsGain) : 0;
   const reactBright = 1 + A.rmsBright * loud;
   const widen = 1 + A.rmsBand * loud;
-  const sig2 = sigma2 * widen * widen;
+  // Hot head: a high peak so the cursor POPS bright, flashing harder on the beat,
+  // then decaying through the long trail (trailDecay) until the swing relights it.
+  const headBoost = M.headBright * (1 + M.beatBright * audioState.beatFlash);
+
+  // Tip band — the chaotic star: flares with its own speed.
+  const brTip0  = reactBright * headBoost * (1 + M.velBright * vTip);
+  const wTip    = widen * (1 + (M.velWiden - 1) * vTip);
+  const sig2Tip = sigma2 * wTip * wTip;
+  const hueTip  = M.velHue * vTip;                   // speed → hue churn
+
+  // Elbow band — contrasting, dimmer: flares with its own speed.
+  const brElb0  = reactBright * headBoost * M.elbowBright * (1 + M.velBright * vElbow);
+  const wElb    = widen * (1 + (M.velWiden - 1) * vElbow);
+  const sig2Elb = sigma2 * wElb * wElb;
+
   // Per-zone frequency boost: each band lifts its mapped zones (computed once/frame).
   const zoneMul = {};
   if (haveAudio) {
@@ -390,18 +455,33 @@ function renderFrame() {
       zoneMul[z] = mul;
     }
   }
+
   for (let i = 0; i < targets.length; i++) {
     const p = targets[i];
-    const ucDelayed = ucHistory[(histHead - p.delay + ucHistory.length) % ucHistory.length];
-    const d = p.u - ucDelayed;
-    let bright = reactBright * Math.exp(-(d * d) / sig2);
-    if (haveAudio && zoneMul[p.zone]) bright *= zoneMul[p.zone];
-    if (bright < 0.004) continue;
-    const [r, g, b] = hsv2rgb(baseHue + CONFIG.heightSpread * p.hue, CONFIG.saturation, bright);
+    const zb = (haveAudio && zoneMul[p.zone]) ? zoneMul[p.zone] : 1;
     const o = i * 3;
-    if (r > acc[o])     acc[o]     = r;
-    if (g > acc[o + 1]) acc[o + 1] = g;
-    if (b > acc[o + 2]) acc[o + 2] = b;
+
+    // Tip band.
+    const dT = p.u - ucTipHist[(histHead - p.delay + histLen) % histLen];
+    const brT = brTip0 * zb * Math.exp(-(dT * dT) / sig2Tip);
+    if (brT >= 0.004) {
+      const [r, g, b] = hsv2rgb(baseHue + CONFIG.heightSpread * p.hue + hueTip, CONFIG.saturation, brT);
+      if (r > acc[o])     acc[o]     = r;
+      if (g > acc[o + 1]) acc[o + 1] = g;
+      if (b > acc[o + 2]) acc[o + 2] = b;
+    }
+
+    // Elbow band.
+    if (M.twoBands) {
+      const dE = p.u - ucElbHist[(histHead - p.delay + histLen) % histLen];
+      const brE = brElb0 * zb * Math.exp(-(dE * dE) / sig2Elb);
+      if (brE >= 0.004) {
+        const [r, g, b] = hsv2rgb(baseHue + M.elbowHue + CONFIG.heightSpread * p.hue, CONFIG.saturation, brE);
+        if (r > acc[o])     acc[o]     = r;
+        if (g > acc[o + 1]) acc[o + 1] = g;
+        if (b > acc[o + 2]) acc[o + 2] = b;
+      }
+    }
   }
 
   // 6. Accumulator → DMX (gamma + clamp). Non-target channels stay 0 (dark).

@@ -219,7 +219,32 @@ function startRelay() {
 // needs a user gesture, hence the toolbar button.
 let audioCtx = null, audioRAF = 0;
 
-async function toggleAudio(btn) {
+// Fill an <select> with the available audio INPUT devices. Note: device labels
+// are only exposed by the browser after mic permission is granted, so this is
+// called again right after the first successful getUserMedia. To capture the
+// internal speakers / system audio, pick a loopback input here (e.g. BlackHole,
+// Loopback, or a multi-output aggregate) — macOS can't capture speaker output
+// directly, only through such a virtual input device.
+async function populateDevices(sel) {
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const inputs = devices.filter(d => d.kind === 'audioinput');
+    const cur = sel.value;
+    sel.innerHTML = '';
+    const def = document.createElement('option');
+    def.value = ''; def.textContent = 'Default input';
+    sel.appendChild(def);
+    inputs.forEach((d, i) => {
+      const o = document.createElement('option');
+      o.value = d.deviceId;
+      o.textContent = d.label || `Input ${i + 1}`;
+      sel.appendChild(o);
+    });
+    sel.value = cur;            // preserve selection across refreshes
+  } catch (e) { /* enumerateDevices can fail before permission — ignore */ }
+}
+
+async function toggleAudio(btn, sel) {
   if (audioCtx) {                                   // already running → stop
     cancelAnimationFrame(audioRAF);
     audioCtx.close(); audioCtx = null;
@@ -227,9 +252,11 @@ async function toggleAudio(btn) {
     return;
   }
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
-    });
+    const deviceId = sel && sel.value ? sel.value : '';
+    const constraints = { echoCancellation: false, noiseSuppression: false, autoGainControl: false };
+    if (deviceId) constraints.deviceId = { exact: deviceId };
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: constraints });
+    if (sel) populateDevices(sel);                  // now that we have permission, fill in labels
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const src      = audioCtx.createMediaStreamSource(stream);
     const analyser = audioCtx.createAnalyser();
@@ -705,14 +732,26 @@ function buildUI() {
   spSlider.addEventListener('input', () => { demoSpeed = parseFloat(spSlider.value); });
   ins(spSlider);
 
-  // Audio capture toggle — feeds beat/rms/bass/treble back to audio-reactive shows.
+  // Audio capture toggle + input-device picker — feeds features to reactive shows.
   const audioSep = document.createElement('div'); audioSep.className = 'sep'; ins(audioSep);
   const audioBtn = document.createElement('button');
   audioBtn.textContent = '🎤 ENABLE AUDIO';
   audioBtn.style.cssText = 'font-family:monospace;font-size:12px;font-weight:bold;' +
     'padding:4px 8px;background:#222;color:#aaa;border:1px solid #444;border-radius:3px;cursor:pointer;';
-  audioBtn.addEventListener('click', () => toggleAudio(audioBtn));
+
+  const audioSel = document.createElement('select');
+  audioSel.title = 'Audio input device (pick a loopback device to capture system/speaker audio)';
+  audioSel.style.maxWidth = '180px';
+  populateDevices(audioSel);
+  // Switching device mid-capture: stop then restart on the new input.
+  audioSel.addEventListener('change', async () => {
+    if (audioCtx) { await toggleAudio(audioBtn, audioSel); await toggleAudio(audioBtn, audioSel); }
+  });
+  if (navigator.mediaDevices) navigator.mediaDevices.addEventListener('devicechange', () => populateDevices(audioSel));
+
+  audioBtn.addEventListener('click', () => toggleAudio(audioBtn, audioSel));
   ins(audioBtn);
+  ins(audioSel);
 
   toolbar.style.display = 'flex';
   document.getElementById('loading').style.display = 'none';
